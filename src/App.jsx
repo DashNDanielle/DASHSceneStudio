@@ -226,13 +226,15 @@ const App = () => {
     setIsTextGenerating(true);
     setError(null);
 
-    const systemPrompt = `You are a world-class prompt engineer for a generative AI image studio. Your task is to take a short, creative description (SCENE DETAILS) and expand it into a highly detailed, descriptive, and vivid paragraph suitable for a photorealistic image generator.
-
-Instructions:
-1. Incorporate the provided STYLE, COLOR, and CLOTHING context into the expanded description.
-2. Maintain the core idea of the SCENE DETAILS.
-3. Add elements like specific lighting, complex textures, composition terms (e.g., volumetric light, shallow depth of field, wide-angle shot, cinematic), and background richness.
-4. Output ONLY the single, enhanced paragraph, without any conversational or leading text.`;
+   const systemPrompt = [
+        `You are a world-class prompt engineer for a generative AI image studio. Your task is to take a short, creative description (SCENE DETAILS) and expand it into a highly detailed, descriptive, and vivid paragraph suitable for a photorealistic image generator.`,
+        ``,
+        `Instructions:`,
+        `1. Incorporate the provided STYLE, COLOR, and CLOTHING context into the expanded description.`,
+        `2. Maintain the core idea of the SCENE DETAILS.`,
+        `3. Add elements like specific lighting, complex textures, composition terms (e.g., volumetric light, shallow depth of field, wide-angle shot, cinematic), and background richness.`,
+        `4. Output ONLY the single, enhanced paragraph, without any conversational or leading text.`
+    ].join('\n');
 
     const userQuery = `SCENE DETAILS: ${basePrompt}. 
     STYLE: ${effectiveStyle}.
