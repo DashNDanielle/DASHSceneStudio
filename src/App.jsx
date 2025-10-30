@@ -417,7 +417,6 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-8 font-['Inter']">
-      <script src="https://cdn.tailwindcss.com"></script>
       <header className="text-center mb-10">
         <h1 className="text-4xl font-extrabold text-teal-700 flex items-center justify-center space-x-3">
           <Aperture className="w-8 h-8"/>
@@ -547,23 +546,40 @@ const App = () => {
                                     : 'bg-gray-50 border-gray-200 hover:bg-teal-50 hover:border-teal-300'
                                 }`}
                         >
-                            <div className="flex items-center justify-between">
-                                <span className="font-semibold text-gray-800">{palette.name}</span>
-                                <div className="flex space-x-1">
-                                    {palette.colors.map((color, index) => (
-                                        <div 
-                                            key={index}
-                                            className="w-5 h-5 rounded-full shadow-inner border border-gray-300"
-                                            style={{ backgroundColor: color }}
-                                            title={color}
-                                        ></div>
-                                    ))}
-                                </div>
-                            </div>
-                            <p className="text-xs text-gray-500 mt-1">{palette.description}</p>
-                        </div>
-                    ))}
-                </div>
+                            {/* Predefined Palettes (CORRECTED STRUCTURE AND STYLING) */}
+<div className="grid grid-cols-1 gap-4 max-h-96 overflow-y-auto pr-2 mb-4">
+    {COLOR_PALETTES.map(palette => (
+        <button
+            key={palette.name}
+            onClick={() => handlePaletteSelect(palette.name)}
+            // Full button styling applied here for consistency
+            className={`p-3 w-full flex flex-col text-left rounded-lg border-2 cursor-pointer transition duration-200 
+                ${selectedPalette === palette.name
+                    ? 'bg-teal-600 text-white border-teal-700 shadow-md transform scale-[1.02]' 
+                    : 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-teal-50 hover:border-teal-300'
+                }`}
+        >
+            {/* Inner div to hold name and color dots */}
+            <div className={`flex items-center justify-between ${selectedPalette === palette.name ? 'text-white' : 'text-gray-800'}`}>
+                <span className="font-semibold">{palette.name}</span>
+                <div className="flex space-x-1">
+                    {palette.colors.map((color, index) => (
+                        <div 
+                            key={index}
+                            className="w-5 h-5 rounded-full shadow-inner border border-gray-300"
+                            style={{ backgroundColor: color }}
+                            title={color}
+                        ></div>
+                    ))}
+                </div>
+            </div>
+            {/* Description text */}
+            <p className={`text-xs mt-1 ${selectedPalette === palette.name ? 'text-teal-200' : 'text-gray-500'}`}>
+                {palette.description}
+            </p>
+        </button>
+    ))}
+</div>
 
                 {/* Custom Palette Input Button */}
                 <button
