@@ -244,4 +244,365 @@ const App = () => {
     Expand and refine the SCENE DETAILS into a rich, full prompt.`;
 
     const payload = {
-      contents: [{ parts: [{
+      contents: [{ parts: [{ text: userQuery }] }],
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+    };
+
+    let attempts = 0;
+    while (attempts < MAX_RETRIES) {
+        try {
+            const response = await fetch(LLM_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Text generation API call failed: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            const enhancedText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+            if (enhancedText) {
+                setUserPrompt(enhancedText.trim());
+                setIsTextGenerating(false);
+                return; // Exit loop on success
+            } else {
+                throw new Error('LLM response format was unexpected or empty.');
+            }
+        } catch (err) {
+            attempts++;
+            if (attempts >= MAX_RETRIES) {
+                console.error("Final LLM API error:", err);
+                setError(`Failed to enhance prompt after ${MAX_RETRIES} attempts.`);
+                setIsTextGenerating(false);
+                return;
+            }
+            const delay = Math.pow(2, attempts) * 1000;
+            console.warn(`LLM attempt ${attempts} failed, retrying in ${delay / 1000}s...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+
+  }, [inputImage, selectedStyle, customStyleInput, selectedPalette, customPaletteInput, selectedClothing, customClothingInput, userPrompt]);
+
+
+  const generateScene = useCallback(async () => {
+    
+    // --- Determine effective style, color, and clothing ---
+    let effectiveStyle = selectedStyle === CUSTOM_STYLE_KEY ? customStyleInput.trim() : selectedStyle;
+    
+    // Explicitly refine 'Kawaii' style to include photorealism
+    if (effectiveStyle === 'Kawaii') {
+        effectiveStyle = 'Photorealistic rendering of the Kawaii fashion and aesthetic, maintaining the character\'s original age and proportions';
+    }
+
+    let colorDescription;
+    if (selectedPalette === CUSTOM_PALETTE_KEY) {
+        const custom = customPaletteInput.trim();
+        colorDescription = custom ? custom : 'a balanced, high-contrast color palette';
+    } else {
+        const palette = COLOR_PALETTES.find(p => p.name === selectedPalette);
+        colorDescription = palette ? palette.description : selectedPalette;
+    }
+    
+    const effectiveClothing = selectedClothing === CUSTOM_CLOTHING_KEY ? customClothingInput.trim() : selectedClothing;
+    // --- End determination ---
+    
+    // --- Validation Checks ---
+    if (!inputImage) {
+      setError("Please complete Step 1: Upload your avatar.");
+      return;
+    }
+    if (!effectiveStyle) {
+      setError("Please complete Step 2: Choose a style or enter a custom one.");
+      return;
+    }
+    if (!colorDescription) {
+      setError("Please complete Step 3: Choose a color palette or enter a custom one.");
+      return;
+    }
+    if (!effectiveClothing) { 
+        setError("Please complete Step 4: Choose a clothing focus or enter a custom one.");
+        return;
+    }
+    // Step 5 (userPrompt) is optional.
+    // --- End Validation Checks ---
+
+
+    setIsLoading(true);
+    setGeneratedImageURL(null);
+    setError(null);
+
+    const imagePart = urlToGenerativePart(inputImage);
+    
+    // --- Determine the final prompt ---
+    let finalSceneDescription = userPrompt.trim();
+    
+    if (!finalSceneDescription) {
+        // Construct a highly detailed prompt instructing the AI to invent the scene.
+        finalSceneDescription = 
+          `Generate a completely unique and highly detailed background, action, and environment. 
+          The scene must have dynamic lighting, compelling composition, and an interesting pose or action.`;
+    }
+
+    // --- HARDCODED 9:16 INSTRUCTION ---
+    const aspectInstruction = `9:16 portrait (1080x1920) aspect ratio. Full-body shot or head-to-toe view. The background must expand vertically to fill the entire tall canvas, ensuring a strong, dynamic vertical composition.`;
+
+    const combinedPrompt = 
+      `The desired output image format must be the ${aspectInstruction}.
+      Modify the uploaded character image. 
+      The visual style and theme must be '${effectiveStyle}'. 
+      The character's outfit must have a strong focus on the silhouette/type: '${effectiveClothing}'.
+      The dominant color palette for the scene and attire must be: ${colorDescription}.
+      It is CRITICAL that you maintain the character's core identity, face, and distinctive features exactly as they are. 
+      Apply the following specific scene description: ${finalSceneDescription}`;
+
+    const textPart = { text: combinedPrompt };
+    // --- End prompt determination ---
+
+    const payload = {
+      contents: [{
+        role: "user",
+        parts: [textPart, imagePart]
+      }],
+      generationConfig: {
+        responseModalities: ['TEXT', 'IMAGE']
+      },
+    };
+
+    let attempts = 0;
+    while (attempts < MAX_RETRIES) {
+      try {
+        const response = await fetch(IMG_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          throw new Error(`API call failed: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+
+        const base64Data = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+
+        if (base64Data) {
+          // Image data is returned as PNG base64 data
+          const imageUrl = `data:image/png;base64,${base64Data}`;
+          setGeneratedImageURL(imageUrl);
+          setIsLoading(false);
+          return; // Exit loop on success
+        } else {
+          throw new Error('Image generation failed or response format was unexpected.');
+        }
+
+      } catch (err) {
+        attempts++;
+        if (attempts >= MAX_RETRIES) {
+          console.error("Final API error:", err);
+          setError(`Failed to generate scene after ${MAX_RETRIES} attempts. Error: ${err.message}`);
+          setIsLoading(false);
+          return;
+        }
+        const delay = Math.pow(2, attempts) * 1000;
+        console.warn(`Attempt ${attempts} failed, retrying in ${delay / 1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }, [inputImage, selectedStyle, customStyleInput, selectedPalette, customPaletteInput, selectedClothing, customClothingInput, userPrompt]);
+
+
+  return (
+    <div className="min-h-screen bg-gray-100 p-4 sm:p-8 font-['Inter']">
+      <header className="text-center mb-10">
+        <h1 className="text-4xl font-extrabold text-teal-700 flex items-center justify-center space-x-3">
+          <Aperture className="w-8 h-8"/>
+          <span>DASH Scene Studio</span>
+        </h1>
+        <p className="text-gray-500 mt-2 text-lg">Define your avatar, pick a style, and describe the scene.</p>
+      </header>
+
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        {/* --- Left Panel: Steps 1, 2, 3, 4 --- */}
+        <div className="lg:col-span-1 space-y-8"> 
+            
+            {/* Step 1: Upload Avatar */}
+            <div className="bg-white p-6 rounded-xl shadow-lg border border-pink-200">
+                <h2 className="text-2xl font-semibold mb-6 text-teal-600">1. Upload Your Avatar</h2>
+                
+                <div className="mb-6">
+                    <label htmlFor="avatar-upload" className="block text-sm font-medium text-gray-700 mb-2">
+                        Character Image File (JPG or PNG)
+                    </label>
+                    <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-pink-400 transition duration-150 cursor-pointer">
+                        <div className="space-y-1 text-center">
+                            <Upload className="mx-auto h-8 w-8 text-gray-400" />
+                            <div className="flex text-sm text-gray-600">
+                                <label htmlFor="avatar-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-pink-600 hover:text-pink-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-pink-500">
+                                    <span>Upload a file</span>
+                                    <input id="avatar-upload" name="avatar-upload" type="file" className="sr-only" onChange={handleImageUpload} accept="image/png, image/jpeg" />
+                                </label>
+                                <p className="pl-1">or drag and drop</p>
+                            </div>
+                            <p className="text-xs text-gray-500">PNG, JPG up to 4MB</p>
+                        </div>
+                    </div>
+                </div>
+
+                {inputImage && (
+                    <div className="p-4 bg-pink-50 rounded-lg border border-pink-200">
+                        <h3 className="text-lg font-medium text-pink-800 mb-3">Current Avatar:</h3>
+                        <img
+                            src={inputImage}
+                            alt="Uploaded Character Avatar"
+                            className="w-full max-w-xs h-auto object-cover rounded-lg shadow-md mx-auto"
+                        />
+                    </div>
+                )}
+            </div>
+            
+            {/* Step 2: Choose Style */}
+            <div className="bg-white p-6 rounded-xl shadow-lg border border-pink-200">
+                <h2 className="text-2xl font-semibold mb-4 text-teal-600 flex items-center space-x-2">
+                  <Palette className="w-6 h-6"/>
+                  <span>2. Choose Your Style</span>
+                </h2>
+                <p className="text-sm text-gray-500 mb-4">Select the aesthetic or theme for your character's clothing and scene.</p>
+                
+                {/* Predefined Styles */}
+                <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-2 mb-4">
+                    {STYLE_OPTIONS.map(style => (
+                        <button
+                            key={style}
+                            onClick={() => handleStyleSelect(style)}
+                            className={`p-3 text-sm font-medium rounded-lg text-left transition duration-200 border-2
+                                ${selectedStyle === style
+                                    ? 'bg-pink-600 text-white border-pink-700 shadow-md transform scale-[1.03]'
+                                    : 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-pink-50 hover:border-pink-300'
+                                }`}
+                        >
+                            {style}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Custom Style Input Button */}
+                <button
+                    onClick={() => handleStyleSelect(CUSTOM_STYLE_KEY)}
+                    className={`p-3 w-full text-sm font-medium rounded-lg text-left transition duration-200 border-2 flex items-center justify-center space-x-2
+                        ${selectedStyle === CUSTOM_STYLE_KEY
+                            ? 'bg-violet-600 text-white border-violet-700 shadow-md transform scale-[1.03]'
+                            : 'bg-violet-100 text-violet-800 border-violet-200 hover:bg-violet-50 hover:border-violet-300'
+                        }`}
+                >
+                    <Type className="w-4 h-4" />
+                    <span>Add Custom Style...</span>
+                </button>
+
+                {/* Custom Style Input Field */}
+                {selectedStyle === CUSTOM_STYLE_KEY && (
+                    <input
+                        type="text"
+                        value={customStyleInput}
+                        onChange={(e) => setCustomStyleInput(e.target.value)}
+                        placeholder="e.g., Solarpunk, Victorian Era, or 90s Grunge"
+                        className="mt-3 w-full p-3 border border-violet-400 rounded-lg focus:ring-violet-500 focus:border-violet-500 shadow-sm"
+                    />
+                )}
+                
+                {(selectedStyle && selectedStyle !== CUSTOM_STYLE_KEY) && (
+                    <p className="mt-4 text-sm font-medium text-pink-600">
+                      Selected: <span className="font-bold">{selectedStyle}</span>
+                    </p>
+                )}
+                {(selectedStyle === CUSTOM_STYLE_KEY && customStyleInput.trim()) && (
+                    <p className="mt-4 text-sm font-medium text-violet-600">
+                      Custom Style: <span className="font-bold">{customStyleInput}</span>
+                    </p>
+                )}
+            </div>
+
+            {/* Step 3: Choose Color Palette */}
+            <div className="bg-white p-6 rounded-xl shadow-lg border border-pink-200">
+                <h2 className="text-2xl font-semibold mb-4 text-teal-600 flex items-center space-x-2">
+                  <Droplet className="w-6 h-6"/>
+                  <span>3. Choose Color Palette</span>
+                </h2>
+                <p className="text-sm text-gray-500 mb-4">Select the dominant colors for the outfit and environment.</p>
+                
+                {/* Predefined Palettes */}
+                <div className="grid grid-cols-1 gap-4 max-h-96 overflow-y-auto pr-2 mb-4">
+                    {COLOR_PALETTES.map(palette => (
+                        <button
+                            key={palette.name}
+                            onClick={() => handlePaletteSelect(palette.name)}
+                            className={`p-3 w-full flex flex-col text-left rounded-lg border-2 cursor-pointer transition duration-200 
+                                ${selectedPalette === palette.name
+                                    ? 'bg-teal-600 text-white border-teal-700 shadow-md transform scale-[1.02]' 
+                                    : 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-teal-50 hover:border-teal-300'
+                                }`}
+                        >
+                            {/* Inner div to hold name and color dots */}
+                            <div className={`flex items-center justify-between ${selectedPalette === palette.name ? 'text-white' : 'text-gray-800'}`}>
+                                <span className="font-semibold">{palette.name}</span>
+                                <div className="flex space-x-1">
+                                    {palette.colors.map((color, index) => (
+                                        <div 
+                                            key={index}
+                                            className="w-5 h-5 rounded-full shadow-inner border border-gray-300"
+                                            style={{ backgroundColor: color }}
+                                            title={color}
+                                        ></div>
+                                    ))}
+                                </div>
+                            </div>
+                            {/* Description text */}
+                            <p className={`text-xs mt-1 ${selectedPalette === palette.name ? 'text-teal-200' : 'text-gray-500'}`}>
+                                {palette.description}
+                            </p>
+                        </button>
+                    ))}
+                </div>
+
+                {/* Custom Palette Input Button */}
+                <button
+                    onClick={() => handlePaletteSelect(CUSTOM_PALETTE_KEY)}
+                    className={`p-3 w-full text-sm font-medium rounded-lg text-left transition duration-200 border-2 flex items-center justify-center space-x-2
+                        ${selectedPalette === CUSTOM_PALETTE_KEY
+                            ? 'bg-violet-600 text-white border-violet-700 shadow-md transform scale-[1.03]'
+                            : 'bg-violet-100 text-violet-800 border-violet-200 hover:bg-violet-50 hover:border-violet-300'
+                        }`}
+                >
+                    <Type className="w-4 h-4" />
+                    <span>Add Custom Palette...</span>
+                </button>
+
+                {/* Custom Palette Input Field */}
+                {selectedPalette === CUSTOM_PALETTE_KEY && (
+                    <input
+                        type="text"
+                        value={customPaletteInput}
+                        onChange={(e) => setCustomPaletteInput(e.target.value)}
+                        placeholder="e.g., forest green, charcoal gray, and copper highlights"
+                        className="mt-3 w-full p-3 border border-violet-400 rounded-lg focus:ring-violet-500 focus:border-violet-500 shadow-sm"
+                    />
+                )}
+
+                {(selectedPalette && selectedPalette !== CUSTOM_PALETTE_KEY) && (
+                    <p className="mt-4 text-sm font-medium text-teal-600">
+                      Selected Palette: <span className="font-bold">{selectedPalette}</span>
+                    </p>
+                )}
+                {(selectedPalette === CUSTOM_PALETTE_KEY && customPaletteInput.trim()) && (
+                    <p className="mt-4 text-sm font-medium text-violet-600">
+                      Custom Palette: <span className="font-bold">{customPaletteInput}</span>
+                    </p>
+                )}
+            </div> // <--- This is the end of Step 3's white card.
+        </div> // <--- This closes the main left column container (lg:col-span-1 space-y-8).
+        
+        {/* --- Right Panel: Step 5 & Results --- */} // <-- Start of the right side.
