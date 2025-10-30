@@ -614,8 +614,10 @@ const App = () => {
                     <p className="mt-4 text-sm font-medium text-violet-600">
                       Custom Palette: <span className="font-bold">{customPaletteInput}</span>
                     </p>
-                )}
-            </div>
+              )}
+            </div> // Closes Step 3 DIV (Color Palette content)
+        </div>
+            </div> {/*
 
             {/* Step 4: Choose Clothing Focus */}
             <div className="bg-white p-6 rounded-xl shadow-lg border border-pink-200">
