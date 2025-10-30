@@ -1,6 +1,77 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* --- DASH THEME COLORS --- */
+:root {
+  --mauve: #a78bfa;        /* soft mauve */
+  --mauve-dark: #7c3aed;   /* rich mauve */
+  --teal-dark: #0f766e;    /* deep dark teal */
+  --teal-soft: #14b8a6;    /* lighter teal */
+  --white: #ffffff;
+}
+
+/* Background gradient */
+body {
+  background: linear-gradient(135deg, var(--white) 0%, #f3f4f6 40%, var(--mauve) 100%);
+  color: var(--teal-dark);
+  font-family: 'Inter', 'Poppins', sans-serif;
+}
+
+/* Card styling */
+.card {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(167, 139, 250, 0.2);
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.1);
+  transition: all 0.3s ease;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(167, 139, 250, 0.15);
+}
+
+/* Buttons */
+button {
+  background: var(--mauve-dark);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 0.75em 1.5em;
+  font-weight: 600;
+  transition: all 0.25s ease;
+}
+button:hover {
+  background: var(--teal-dark);
+  transform: translateY(-1px);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Section headings */
+h2 {
+  color: var(--teal-dark);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* Input fields */
+input, textarea {
+  border: 1px solid rgba(20, 184, 166, 0.3);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  transition: all 0.2s ease;
+}
+input:focus, textarea:focus {
+  border-color: var(--mauve-dark);
+  box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.25);
+}
+
+/* Scrollbars */
+::-webkit-scrollbar-thumb {
+  background-color: var(--mauve-dark);
+}
 
 /* ---------- Root Typography & Colors ---------- */
 :root {

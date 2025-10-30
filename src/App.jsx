@@ -4,6 +4,9 @@ import { initializeApp } from "firebase/app";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+// 🌸 DASH Scene Studio card styling
+const cardClass = "card p-6 space-y-3";
+
 // --- Firebase Setup (replace values) ---
 const firebaseConfig = {
   apiKey: "YOUR_FIREBASE_API_KEY",
@@ -140,7 +143,7 @@ export default function App() {
   ];
 
   return (
-   <div className="min-h-screen bg-accent p-8 container">
+   <div className="min-h-screen flex flex-col items-center py-10 px-4 bg-gradient-to-br from-white via-[#e0f2f1] to-[#ede9fe]">
       <h1 className="text-2xl font-semibold text-center text-emerald-700 mb-6">
         ✿ DASH Scene Studio
       </h1>
@@ -152,7 +155,7 @@ export default function App() {
         {/* LEFT COLUMN */}
         <div className="space-y-6">
           {/* Step 1: Upload Avatar */}
-          <div className="bg-white p-5 rounded-2xl shadow-md">
+          <div className={cardClass}>
             <h2 className="font-semibold text-emerald-700 mb-2">① Upload Your Avatar</h2>
             <input type="file" accept="image/*" onChange={handleAvatarUpload} className="mb-3" />
             {uploading ? (
@@ -170,7 +173,7 @@ export default function App() {
           </div>
 
           {/* Step 2: Choose Style */}
-          <div className="bg-white p-5 rounded-2xl shadow-md">
+          <div className={cardClass}>
             <h2 className="font-semibold text-emerald-700 mb-2">② Choose Your Style</h2>
             <div className="grid grid-cols-2 gap-2">
               {styles.map((s) => (
@@ -219,7 +222,7 @@ export default function App() {
           </div>
 
           {/* Step 3: Choose Color Palette */}
-          <div className="bg-white p-5 rounded-2xl shadow-md">
+          <div className={cardClass}>
             <h2 className="font-semibold text-emerald-700 mb-2">③ Choose Color Palette</h2>
             <div className="space-y-3">
               {colorPalettes.map((p) => (
@@ -276,7 +279,7 @@ export default function App() {
           </div>
 
           {/* Step 4: Choose Clothing Focus */}
-          <div className="bg-white p-5 rounded-2xl shadow-md">
+          <div className={cardClass}>
             <h2 className="font-semibold text-emerald-700 mb-2">④ Choose Clothing Focus</h2>
             <div className="grid grid-cols-2 gap-2">
               {clothingFocuses.map((c) => (
@@ -328,7 +331,7 @@ export default function App() {
         {/* RIGHT COLUMN */}
         <div className="lg:col-span-2 space-y-6">
           {/* Step 5: Scene Description */}
-          <div className="bg-white p-5 rounded-2xl shadow-md">
+          <div className={cardClass}>
             <h2 className="font-semibold text-emerald-700 mb-2">⑤ Describe The Scene Details (Optional)</h2>
             <textarea
               className="w-full border rounded-md p-3 text-sm mb-4"
