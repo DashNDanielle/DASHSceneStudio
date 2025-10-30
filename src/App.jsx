@@ -2,11 +2,9 @@ import React, { useState } from "react";
 import { Loader2, Upload, ImagePlus, PlusCircle } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-
-// (Optional future Gemini imports)
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// ✅ Initialize Firebase
+// --- Firebase Setup (replace values) ---
 const firebaseConfig = {
   apiKey: "YOUR_FIREBASE_API_KEY",
   authDomain: "YOUR_FIREBASE_AUTH_DOMAIN",
@@ -18,6 +16,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const storage = getStorage(app);
 
+// --- Gemini Setup ---
+const genAI = new GoogleGenerativeAI("YOUR_GEMINI_API_KEY");
+const model = genAI.getGenerativeModel({
+  model: "gemini-2.5-flash-image-preview", // ✅ correct image generator model
+});
+
 export default function App() {
   const [avatar, setAvatar] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -28,7 +32,7 @@ export default function App() {
   const [imageURL, setImageURL] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // For custom additions
+  // Custom inputs
   const [customStyle, setCustomStyle] = useState("");
   const [showStyleInput, setShowStyleInput] = useState(false);
   const [customPalette, setCustomPalette] = useState("");
@@ -36,9 +40,7 @@ export default function App() {
   const [customClothing, setCustomClothing] = useState("");
   const [showClothingInput, setShowClothingInput] = useState(false);
 
-  // Optional Gemini initialization
-  const genAI = new GoogleGenerativeAI("YOUR_GEMINI_API_KEY");
-
+  // ---- Step 1: Upload Avatar ----
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -55,19 +57,51 @@ export default function App() {
     }
   };
 
+  // ---- Step 5: Generate Scene (Gemini Image Generation) ----
   const handleGenerateScene = async () => {
+    if (!avatar) {
+      alert("Please upload an avatar first.");
+      return;
+    }
+
     setLoading(true);
     try {
-      // placeholder
-      setImageURL(avatar);
+      const userPrompt = `
+        Create a ${style || "stylish"} scene featuring the character.
+        Outfit: ${clothingFocus || "modern fashion"}.
+        Color palette: ${colorPalette || "balanced tones"}.
+        Scene details: ${prompt || "creative background"}.
+        Maintain likeness of the uploaded avatar.
+        Output format: 9:16 portrait aspect ratio.
+      `;
+
+      const result = await model.generateContent([
+        {
+          role: "user",
+          parts: [
+            { text: userPrompt },
+            { inlineData: { mimeType: "image/png", data: avatar } },
+          ],
+        },
+      ]);
+
+      const imageData =
+        result.response?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+
+      if (imageData) {
+        setImageURL(`data:image/png;base64,${imageData}`);
+      } else {
+        alert("No image data returned from Gemini.");
+      }
     } catch (err) {
       console.error("Generation error:", err);
+      alert("Error generating scene. Check console for details.");
     } finally {
       setLoading(false);
     }
   };
 
-  // ---- Style Options ----
+  // ---- UI Options ----
   const styles = [
     "Dark Academia Aesthetic",
     "Kawaii",
@@ -86,7 +120,6 @@ export default function App() {
     "Grunge Aesthetic",
   ];
 
-  // ---- Color Palettes ----
   const colorPalettes = [
     { name: "Ocean Mist", colors: ["#5F9EA0", "#B0C4DE", "#E6E6FA"], description: "Soft blues, seafoam green, and lavender." },
     { name: "Desert Sunset", colors: ["#CD5C5C", "#F4A460", "#F0E68C"], description: "Deep reds, vibrant oranges, and warm sand tones." },
@@ -96,7 +129,6 @@ export default function App() {
     { name: "Pastel Dreams", colors: ["#FADADD", "#B0E0E6", "#FAFAD2"], description: "Soft rose, baby blue, and pale yellow." },
   ];
 
-  // ---- Clothing Options ----
   const clothingFocuses = [
     "Full Dress or Gown",
     "Pants and Top (Trousers, Jeans, etc.)",
@@ -154,7 +186,6 @@ export default function App() {
               ))}
             </div>
 
-            {/* Custom Style Input */}
             {showStyleInput ? (
               <div className="mt-3 flex items-center gap-2">
                 <input
@@ -212,14 +243,13 @@ export default function App() {
               ))}
             </div>
 
-            {/* Custom Palette Input */}
             {showPaletteInput ? (
               <div className="mt-3 flex items-center gap-2">
                 <input
                   type="text"
                   value={customPalette}
                   onChange={(e) => setCustomPalette(e.target.value)}
-                  placeholder="Enter custom palette name..."
+                  placeholder="Enter custom palette..."
                   className="border rounded-md p-2 flex-1 text-sm"
                 />
                 <button
@@ -262,7 +292,6 @@ export default function App() {
               ))}
             </div>
 
-            {/* Custom Clothing Input */}
             {showClothingInput ? (
               <div className="mt-3 flex items-center gap-2">
                 <input
@@ -310,9 +339,11 @@ export default function App() {
             />
             <button
               onClick={handleGenerateScene}
-              className="w-full bg-emerald-500 text-white font-medium py-2 rounded-lg hover:bg-emerald-600 transition flex items-center justify-center gap-2"
+              disabled={loading}
+              className="w-full bg-emerald-500 text-white font-medium py-2 rounded-lg hover:bg-emerald-600 transition flex items-center justify-center gap-2 disabled:opacity-60"
             >
-              <ImagePlus size={18} /> Generate New Scene (9:16)
+              {loading ? <Loader2 className="animate-spin" size={18} /> : <ImagePlus size={18} />}
+              {loading ? "Generating..." : "Generate New Scene (9:16)"}
             </button>
           </div>
 
@@ -324,11 +355,7 @@ export default function App() {
                 <Loader2 className="animate-spin mr-2" /> Generating...
               </div>
             ) : imageURL ? (
-              <img
-                src={imageURL}
-                alt="Generated scene"
-                className="rounded-xl mx-auto border w-auto h-[600px] object-cover"
-              />
+              <img src={imageURL} alt="Generated scene" className="rounded-xl mx-auto border w-auto h-[600px] object-cover" />
             ) : (
               <div className="flex flex-col justify-center items-center border-2 border-dashed border-gray-300 rounded-xl h-96 text-gray-400">
                 <ImagePlus size={22} className="mb-2" />
