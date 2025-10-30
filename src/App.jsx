@@ -3,12 +3,17 @@ import { Loader2, Upload, ImagePlus, PlusCircle } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 
-// 🌸 DASH Scene Studio card styling
+// 🌈 Initialize Gemini
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({
+  model: "gemini-2.5-flash-image-preview",
+});
+
+// 🌸 Card styling shortcut
 const cardClass = "card p-6 space-y-3";
 
-// --- Firebase Setup (replace values) ---
+// 🌿 Firebase Setup
 const firebaseConfig = {
   apiKey: "AIzaSyAiv_DQMuczXR3cFp3-4tu5qYzGCcga8kI",
   authDomain: "dash-scene-studio.firebaseapp.com",
@@ -16,15 +21,10 @@ const firebaseConfig = {
   storageBucket: "dash-scene-studio.firebasestorage.app",
   messagingSenderId: "730304435",
   appId: "1:730304435:web:eb79b75293b8f12b8145c6",
-  measurementId: "G-SS5X5RVQLJ"
+  measurementId: "G-SS5X5RVQLJ",
 };
 const app = initializeApp(firebaseConfig);
 const storage = getStorage(app);
-
-// --- Gemini Setup ---
-const model = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash-image-preview", // ✅ correct image generator model
-});
 
 export default function App() {
   const [avatar, setAvatar] = useState(null);
@@ -61,84 +61,84 @@ export default function App() {
     }
   };
 
-  // ---- Step 5: Generate Scene (Gemini Image Generation) ----
- // ---- Image Generation using Gemini 2.5 ----
-const handleGenerateScene = async () => {
-  if (!avatar) {
-    alert("Please upload your avatar first.");
-    return;
-  }
+  // ---- Step 5: Generate Scene ----
+  const handleGenerateScene = async () => {
+    if (!avatar) {
+      alert("Please upload your avatar first.");
+      return;
+    }
 
-  setLoading(true);
-  setImageURL(null);
+    setLoading(true);
+    setImageURL(null);
 
-  try {
-    // Convert uploaded avatar to base64 (so Gemini can edit it)
-    const response = await fetch(avatar);
-    const blob = await response.blob();
-    const reader = new FileReader();
+    try {
+      const response = await fetch(avatar);
+      const blob = await response.blob();
+      const reader = new FileReader();
 
-    reader.onloadend = async () => {
-      const base64 = reader.result.split(",")[1];
+      reader.onloadend = async () => {
+        const base64 = reader.result.split(",")[1];
 
-      const prompt = `
-        Create a new image using the uploaded character as reference.
-        Maintain facial identity and proportions.
-        Style: ${style || "Default"}
-        Color Palette: ${colorPalette || "Default"}
-        Clothing: ${clothingFocus || "Default"}
-        Scene: ${prompt || "Creative portrait scene in 9:16 aspect ratio"}
-        Keep vertical composition and cinematic lighting.
-      `;
+        const userPrompt = `
+          Generate a new image of this same character while maintaining likeness.
+          Style: ${style || "Default"}.
+          Color Palette: ${colorPalette || "Default"}.
+          Clothing: ${clothingFocus || "Default"}.
+          Scene: ${prompt || "Creative portrait scene in 9:16 aspect ratio"}.
+          Use cinematic lighting and portrait framing.
+        `;
 
-      const result = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${
-          import.meta.env.VITE_GEMINI_API_KEY
-        }`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  { text: prompt },
-                  {
-                    inlineData: {
-                      mimeType: blob.type,
-                      data: base64,
+        const result = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${
+            import.meta.env.VITE_GEMINI_API_KEY
+          }`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [
+                {
+                  role: "user",
+                  parts: [
+                    { text: userPrompt },
+                    {
+                      inlineData: {
+                        mimeType: blob.type,
+                        data: base64,
+                      },
                     },
-                  },
-                ],
-              },
-            ],
-          }),
-        }
-      );
+                  ],
+                },
+              ],
+            }),
+          }
+        );
 
-      const data = await result.json();
+        const data = await result.json();
+        console.log("Gemini response:", data);
 
-      if (data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
         const imageBase64 =
-          data.candidates[0].content.parts[0].inlineData.data;
-        setImageURL(`data:image/png;base64,${imageBase64}`);
-      } else {
-        console.error("Gemini API returned unexpected response:", data);
-        alert("Error: Gemini did not return an image.");
-      }
+          data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
 
+        if (imageBase64) {
+          setImageURL(`data:image/png;base64,${imageBase64}`);
+        } else {
+          console.error("Gemini did not return image data:", data);
+          alert("Gemini did not return an image. Check your API key and console logs.");
+        }
+
+        setLoading(false);
+      };
+
+      reader.readAsDataURL(blob);
+    } catch (error) {
+      console.error("Error generating scene:", error);
+      alert("Error generating scene. Check console for details.");
       setLoading(false);
-    };
+    }
+  };
 
-    reader.readAsDataURL(blob);
-  } catch (error) {
-    console.error("Error generating scene:", error);
-    alert("Error generating scene. Check console for details.");
-    setLoading(false);
-  }
-};
-
-  // ---- UI Options ----
+  // ---- Options ----
   const styles = [
     "Dark Academia Aesthetic",
     "Kawaii",
@@ -176,21 +176,22 @@ const handleGenerateScene = async () => {
     "Swimwear or Beach Attire",
   ];
 
+  // ---- UI ----
   return (
-   <div className="min-h-screen flex flex-col items-center py-10 px-4 bg-gradient-to-br from-white via-[#e0f2f1] to-[#ede9fe]">
-      <h1 className="text-2xl font-semibold text-center text-emerald-700 mb-6">
+    <div className="min-h-screen flex flex-col items-center py-10 px-4 bg-gradient-to-br from-[#f7f7ff] via-[#d1f1ee] to-[#e8d9f1]">
+      <h1 className="text-3xl font-bold text-center text-[#1c3d3a] mb-6 drop-shadow-sm">
         ✿ DASH Scene Studio
       </h1>
-      <p className="text-center text-gray-500 mb-8">
-        Define your avatar, pick a style, and describe the scene.
+      <p className="text-center text-gray-600 mb-8 max-w-lg">
+        Upload your avatar, choose your style and colors, then let Gemini create your next scene ✨
       </p>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full max-w-7xl">
         {/* LEFT COLUMN */}
         <div className="space-y-6">
           {/* Step 1: Upload Avatar */}
           <div className={cardClass}>
-            <h2 className="font-semibold text-emerald-700 mb-2">① Upload Your Avatar</h2>
+            <h2 className="font-semibold text-[#1c3d3a] mb-2">① Upload Your Avatar</h2>
             <input type="file" accept="image/*" onChange={handleAvatarUpload} className="mb-3" />
             {uploading ? (
               <p className="text-sm text-gray-500 flex items-center gap-2">
@@ -206,167 +207,69 @@ const handleGenerateScene = async () => {
             )}
           </div>
 
-          {/* Step 2: Choose Style */}
-          <div className={cardClass}>
-            <h2 className="font-semibold text-emerald-700 mb-2">② Choose Your Style</h2>
-            <div className="grid grid-cols-2 gap-2">
-              {styles.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setStyle(s)}
-                  className={`p-2 text-sm rounded-md border ${
-                    style === s ? "bg-emerald-100 border-emerald-400" : "hover:bg-gray-100"
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-
-            {showStyleInput ? (
-              <div className="mt-3 flex items-center gap-2">
-                <input
-                  type="text"
-                  value={customStyle}
-                  onChange={(e) => setCustomStyle(e.target.value)}
-                  placeholder="Enter custom style..."
-                  className="border rounded-md p-2 flex-1 text-sm"
-                />
-                <button
-                  onClick={() => {
-                    if (customStyle.trim()) {
-                      setStyle(customStyle);
-                      setShowStyleInput(false);
-                      setCustomStyle("");
-                    }
-                  }}
-                  className="bg-emerald-500 text-white px-3 py-2 rounded-md text-sm"
-                >
-                  Add
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowStyleInput(true)}
-                className="mt-3 flex items-center gap-2 text-emerald-600 text-sm"
-              >
+          {/* Style, Palette, Clothing */}
+          {[{
+            title: "② Choose Your Style",
+            items: styles,
+            state: [style, setStyle],
+            showInput: [showStyleInput, setShowStyleInput],
+            custom: [customStyle, setCustomStyle]
+          }, {
+            title: "③ Choose Color Palette",
+            items: colorPalettes,
+            state: [colorPalette, setColorPalette],
+            showInput: [showPaletteInput, setShowPaletteInput],
+            custom: [customPalette, setCustomPalette]
+          }, {
+            title: "④ Choose Clothing Focus",
+            items: clothingFocuses,
+            state: [clothingFocus, setClothingFocus],
+            showInput: [showClothingInput, setShowClothingInput],
+            custom: [customClothing, setCustomClothing]
+          }].map((section, index) => (
+            <div className={cardClass} key={index}>
+              <h2 className="font-semibold text-[#1c3d3a] mb-2">{section.title}</h2>
+              {index === 1 ? (
+                <div className="space-y-3">
+                  {section.items.map((p) => (
+                    <button key={p.name}
+                      onClick={() => section.state[1](p.name)}
+                      className={`w-full flex items-center justify-between rounded-md border p-2 text-sm ${
+                        section.state[0] === p.name ? "bg-[#e6f5f3] border-[#1c3d3a]" : "hover:bg-gray-100"
+                      }`}>
+                      <span className="text-left">
+                        <strong>{p.name}</strong>
+                        <div className="text-xs text-gray-500">{p.description}</div>
+                      </span>
+                      <div className="flex gap-1">{p.colors.map((c, i) => (
+                        <span key={i} className="w-4 h-4 rounded-full border" style={{ backgroundColor: c }}></span>
+                      ))}</div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {section.items.map((opt) => (
+                    <button key={opt}
+                      onClick={() => section.state[1](opt)}
+                      className={`p-2 text-sm rounded-md border ${
+                        section.state[0] === opt ? "bg-[#e6f5f3] border-[#1c3d3a]" : "hover:bg-gray-100"
+                      }`}>{opt}</button>
+                  ))}
+                </div>
+              )}
+              <button onClick={() => section.showInput[1](true)}
+                className="mt-3 flex items-center gap-2 text-[#4b3d5a] text-sm">
                 <PlusCircle size={16} /> Create My Own
               </button>
-            )}
-          </div>
-
-          {/* Step 3: Choose Color Palette */}
-          <div className={cardClass}>
-            <h2 className="font-semibold text-emerald-700 mb-2">③ Choose Color Palette</h2>
-            <div className="space-y-3">
-              {colorPalettes.map((p) => (
-                <button
-                  key={p.name}
-                  onClick={() => setColorPalette(p.name)}
-                  className={`w-full flex items-center justify-between rounded-md border p-2 text-sm ${
-                    colorPalette === p.name ? "bg-emerald-100 border-emerald-400" : "hover:bg-gray-100"
-                  }`}
-                >
-                  <span className="text-left">
-                    <strong>{p.name}</strong>
-                    <div className="text-xs text-gray-500">{p.description}</div>
-                  </span>
-                  <div className="flex gap-1">
-                    {p.colors.map((c, i) => (
-                      <span key={i} className="w-4 h-4 rounded-full border" style={{ backgroundColor: c }}></span>
-                    ))}
-                  </div>
-                </button>
-              ))}
             </div>
-
-            {showPaletteInput ? (
-              <div className="mt-3 flex items-center gap-2">
-                <input
-                  type="text"
-                  value={customPalette}
-                  onChange={(e) => setCustomPalette(e.target.value)}
-                  placeholder="Enter custom palette..."
-                  className="border rounded-md p-2 flex-1 text-sm"
-                />
-                <button
-                  onClick={() => {
-                    if (customPalette.trim()) {
-                      setColorPalette(customPalette);
-                      setShowPaletteInput(false);
-                      setCustomPalette("");
-                    }
-                  }}
-                  className="bg-emerald-500 text-white px-3 py-2 rounded-md text-sm"
-                >
-                  Add
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowPaletteInput(true)}
-                className="mt-3 flex items-center gap-2 text-emerald-600 text-sm"
-              >
-                <PlusCircle size={16} /> Create My Own
-              </button>
-            )}
-          </div>
-
-          {/* Step 4: Choose Clothing Focus */}
-          <div className={cardClass}>
-            <h2 className="font-semibold text-emerald-700 mb-2">④ Choose Clothing Focus</h2>
-            <div className="grid grid-cols-2 gap-2">
-              {clothingFocuses.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setClothingFocus(c)}
-                  className={`p-2 text-sm rounded-md border ${
-                    clothingFocus === c ? "bg-emerald-100 border-emerald-400" : "hover:bg-gray-100"
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-
-            {showClothingInput ? (
-              <div className="mt-3 flex items-center gap-2">
-                <input
-                  type="text"
-                  value={customClothing}
-                  onChange={(e) => setCustomClothing(e.target.value)}
-                  placeholder="Enter custom clothing..."
-                  className="border rounded-md p-2 flex-1 text-sm"
-                />
-                <button
-                  onClick={() => {
-                    if (customClothing.trim()) {
-                      setClothingFocus(customClothing);
-                      setShowClothingInput(false);
-                      setCustomClothing("");
-                    }
-                  }}
-                  className="bg-emerald-500 text-white px-3 py-2 rounded-md text-sm"
-                >
-                  Add
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowClothingInput(true)}
-                className="mt-3 flex items-center gap-2 text-emerald-600 text-sm"
-              >
-                <PlusCircle size={16} /> Create My Own
-              </button>
-            )}
-          </div>
+          ))}
         </div>
 
         {/* RIGHT COLUMN */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Step 5: Scene Description */}
           <div className={cardClass}>
-            <h2 className="font-semibold text-emerald-700 mb-2">⑤ Describe The Scene Details (Optional)</h2>
+            <h2 className="font-semibold text-[#1c3d3a] mb-2">⑤ Describe The Scene (Optional)</h2>
             <textarea
               className="w-full border rounded-md p-3 text-sm mb-4"
               placeholder="E.g., Standing on a futuristic bridge overlooking city lights at dusk..."
@@ -377,16 +280,15 @@ const handleGenerateScene = async () => {
             <button
               onClick={handleGenerateScene}
               disabled={loading}
-              className="w-full bg-emerald-500 text-white font-medium py-2 rounded-lg hover:bg-emerald-600 transition flex items-center justify-center gap-2 disabled:opacity-60"
+              className="w-full bg-[#1c3d3a] text-white font-medium py-2 rounded-lg hover:bg-[#305753] transition flex items-center justify-center gap-2 disabled:opacity-60"
             >
               {loading ? <Loader2 className="animate-spin" size={18} /> : <ImagePlus size={18} />}
               {loading ? "Generating..." : "Generate New Scene (9:16)"}
             </button>
           </div>
 
-          {/* Step 6: Generated Scene */}
           <div className="bg-white p-5 rounded-2xl shadow-md text-center">
-            <h2 className="font-semibold text-emerald-700 mb-2">⑥ Generated Scene (9:16 Portrait)</h2>
+            <h2 className="font-semibold text-[#1c3d3a] mb-2">⑥ Generated Scene (9:16 Portrait)</h2>
             {loading ? (
               <div className="flex justify-center items-center h-96 text-gray-500">
                 <Loader2 className="animate-spin mr-2" /> Generating...
