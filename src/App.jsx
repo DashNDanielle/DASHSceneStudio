@@ -3,24 +3,26 @@ import { Loader2, Upload, ImagePlus, PlusCircle } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 
 // 🌸 DASH Scene Studio card styling
 const cardClass = "card p-6 space-y-3";
 
 // --- Firebase Setup (replace values) ---
 const firebaseConfig = {
-  apiKey: "YOUR_FIREBASE_API_KEY",
-  authDomain: "YOUR_FIREBASE_AUTH_DOMAIN",
-  projectId: "YOUR_FIREBASE_PROJECT_ID",
-  storageBucket: "YOUR_FIREBASE_BUCKET",
-  messagingSenderId: "YOUR_FIREBASE_SENDER_ID",
-  appId: "YOUR_FIREBASE_APP_ID",
+  apiKey: "AIzaSyAiv_DQMuczXR3cFp3-4tu5qYzGCcga8kI",
+  authDomain: "dash-scene-studio.firebaseapp.com",
+  projectId: "dash-scene-studio",
+  storageBucket: "dash-scene-studio.firebasestorage.app",
+  messagingSenderId: "730304435",
+  appId: "1:730304435:web:eb79b75293b8f12b8145c6",
+  measurementId: "G-SS5X5RVQLJ"
 };
 const app = initializeApp(firebaseConfig);
 const storage = getStorage(app);
 
 // --- Gemini Setup ---
-const genAI = new GoogleGenerativeAI("YOUR_GEMINI_API_KEY");
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({
   model: "gemini-2.5-flash-image-preview", // ✅ correct image generator model
 });
@@ -61,48 +63,81 @@ export default function App() {
   };
 
   // ---- Step 5: Generate Scene (Gemini Image Generation) ----
-  const handleGenerateScene = async () => {
-    if (!avatar) {
-      alert("Please upload an avatar first.");
-      return;
-    }
+ // ---- Image Generation using Gemini 2.5 ----
+const handleGenerateScene = async () => {
+  if (!avatar) {
+    alert("Please upload your avatar first.");
+    return;
+  }
 
-    setLoading(true);
-    try {
-      const userPrompt = `
-        Create a ${style || "stylish"} scene featuring the character.
-        Outfit: ${clothingFocus || "modern fashion"}.
-        Color palette: ${colorPalette || "balanced tones"}.
-        Scene details: ${prompt || "creative background"}.
-        Maintain likeness of the uploaded avatar.
-        Output format: 9:16 portrait aspect ratio.
+  setLoading(true);
+  setImageURL(null);
+
+  try {
+    // Convert uploaded avatar to base64 (so Gemini can edit it)
+    const response = await fetch(avatar);
+    const blob = await response.blob();
+    const reader = new FileReader();
+
+    reader.onloadend = async () => {
+      const base64 = reader.result.split(",")[1];
+
+      const prompt = `
+        Create a new image using the uploaded character as reference.
+        Maintain facial identity and proportions.
+        Style: ${style || "Default"}
+        Color Palette: ${colorPalette || "Default"}
+        Clothing: ${clothingFocus || "Default"}
+        Scene: ${prompt || "Creative portrait scene in 9:16 aspect ratio"}
+        Keep vertical composition and cinematic lighting.
       `;
 
-      const result = await model.generateContent([
+      const result = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${
+          import.meta.env.VITE_GEMINI_API_KEY
+        }`,
         {
-          role: "user",
-          parts: [
-            { text: userPrompt },
-            { inlineData: { mimeType: "image/png", data: avatar } },
-          ],
-        },
-      ]);
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { text: prompt },
+                  {
+                    inlineData: {
+                      mimeType: blob.type,
+                      data: base64,
+                    },
+                  },
+                ],
+              },
+            ],
+          }),
+        }
+      );
 
-      const imageData =
-        result.response?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      const data = await result.json();
 
-      if (imageData) {
-        setImageURL(`data:image/png;base64,${imageData}`);
+      if (data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
+        const imageBase64 =
+          data.candidates[0].content.parts[0].inlineData.data;
+        setImageURL(`data:image/png;base64,${imageBase64}`);
       } else {
-        alert("No image data returned from Gemini.");
+        console.error("Gemini API returned unexpected response:", data);
+        alert("Error: Gemini did not return an image.");
       }
-    } catch (err) {
-      console.error("Generation error:", err);
-      alert("Error generating scene. Check console for details.");
-    } finally {
+
       setLoading(false);
-    }
-  };
+    };
+
+    reader.readAsDataURL(blob);
+  } catch (error) {
+    console.error("Error generating scene:", error);
+    alert("Error generating scene. Check console for details.");
+    setLoading(false);
+  }
+};
 
   // ---- UI Options ----
   const styles = [
