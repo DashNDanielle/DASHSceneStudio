@@ -2,14 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Root styling */
+/* ---------- Root Typography & Colors ---------- */
 :root {
   font-family: 'Inter', 'Poppins', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
   color: #374151;
-  background-color: #f8fafb;
+  background-color: #fafafa;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -17,61 +16,106 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Links */
+/* ---------- Body & Base Layout ---------- */
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f8fafb 0%, #fdfdfd 100%);
+}
+
+/* ---------- Typography ---------- */
+h1, h2, h3 {
+  font-family: 'Poppins', sans-serif;
+  color: #065f46;
+}
+
+h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 1rem;
+  letter-spacing: 0.4px;
+}
+
+h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #047857;
+  margin-bottom: 0.75rem;
+}
+
+/* ---------- Links ---------- */
 a {
+  color: #059669;
   font-weight: 500;
-  color: #059669; /* Emerald green accent */
   text-decoration: none;
 }
 a:hover {
   color: #10b981;
 }
 
-/* Body */
-body {
-  margin: 0;
-  display: block;
-  min-width: 320px;
-  min-height: 100vh;
-  background-color: #f8fafb;
-}
-
-/* Headings */
-h1, h2, h3 {
-  font-family: 'Poppins', sans-serif;
-}
-
-/* Buttons */
+/* ---------- Buttons ---------- */
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.5em 1em;
-  font-size: 1em;
+  border-radius: 0.75rem;
+  border: 1px solid #a7f3d0;
+  background: #ecfdf5;
+  color: #065f46;
   font-weight: 500;
-  background-color: #f0fdf4;
-  cursor: pointer;
   transition: all 0.2s ease;
 }
 button:hover {
-  background-color: #dcfce7;
+  background: #d1fae5;
+  transform: translateY(-1px);
 }
-button:focus,
-button:focus-visible {
-  outline: 2px solid #34d399;
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-/* Cards & layout */
-.bg-white {
+/* ---------- Inputs & Textareas ---------- */
+textarea,
+input {
   background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
 }
-.shadow-md {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-.rounded-2xl {
-  border-radius: 1rem;
+textarea:focus,
+input:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+  outline: none;
 }
 
-/* Scrollbars */
+/* ---------- Card Layout ---------- */
+.card {
+  background: #ffffff;
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+  border: 1px solid #f3f4f6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.07);
+}
+
+/* ---------- Section Headings ---------- */
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #065f46;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+/* ---------- Scrollbars ---------- */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -83,10 +127,17 @@ button:focus-visible {
   background-color: #6ee7b7;
 }
 
-/* Media preference support */
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #374151;
-    background-color: #f8fafb;
-  }
+/* ---------- Accent & Background Blocks ---------- */
+.bg-accent {
+  background: linear-gradient(90deg, #ecfdf5, #fef2f2);
+}
+.border-accent {
+  border-color: #f9a8d4;
+}
+
+/* ---------- Responsive Container ---------- */
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1rem;
 }

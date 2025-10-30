@@ -140,7 +140,7 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+   <div className="min-h-screen bg-accent p-8 container">
       <h1 className="text-2xl font-semibold text-center text-emerald-700 mb-6">
         ✿ DASH Scene Studio
       </h1>
