@@ -494,8 +494,8 @@ Return a clear portrait composition.
                 <div className="flex flex-col justify-center items-center border-2 border-dashed border-pink-300 rounded-xl h-96 text-gray-400">
                   <ImagePlus size={22} className="mb-2" />
                   Your generated scene will appear here.
-                </div>
-              )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
