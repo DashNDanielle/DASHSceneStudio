@@ -215,40 +215,38 @@ Return a clear portrait composition.
     >
       {s}
     </button>
-  ))}
-</div>
-              {!showStyleInput ? (
-                <button
-                  onClick={() => setShowStyleInput(true)}
-                  className="mt-3 flex items-center gap-2 text-pink-600 text-sm"
-                >
-                  <PlusCircle size={16} /> Create My Own
-                </button>
-              ) : (
-                <div className="mt-3 flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={customStyle}
-                    onChange={(e) => setCustomStyle(e.target.value)}
-                    placeholder="Enter custom style..."
-                    className="border rounded-md p-2 flex-1 text-sm"
-                  />
-                  <button
-                    onClick={() => {
-                      if (customStyle.trim()) {
-                        setStyle(customStyle);
-                        setShowStyleInput(false);
-                        setCustomStyle("");
-                      }
-                    }}
-                    className="bg-pink-500 text-white px-3 py-2 rounded-md text-sm"
-                  >
-                    Add
-                  </button>
-                </div>
-              )}
-            </div>
+ </div>
 
+{!showStyleInput ? (
+  <button
+    onClick={() => setShowStyleInput(true)}
+    className="mt-3 flex items-center gap-2 text-pink-600 text-sm"
+  >
+    <PlusCircle size={16} /> Create My Own
+  </button>
+) : (
+  <div className="mt-3 flex items-center gap-2">
+    <input
+      type="text"
+      value={customStyle}
+      onChange={(e) => setCustomStyle(e.target.value)}
+      placeholder="Enter custom style..."
+      className="border rounded-md p-2 flex-1 text-sm"
+    />
+    <button
+      onClick={() => {
+        if (customStyle.trim()) {
+          setStyle(customStyle);
+          setShowStyleInput(false);
+          setCustomStyle("");
+        }
+      }}
+      className="bg-pink-500 text-white px-3 py-2 rounded-md text-sm"
+    >
+      Add
+    </button>
+  </div>
+)}
             {/* Color Palette */}
             <div className="p-6 bg-pink-50 rounded-2xl border border-pink-200">
               <h2 className="font-semibold text-pink-600 mb-2">③ Choose Color Palette</h2>
