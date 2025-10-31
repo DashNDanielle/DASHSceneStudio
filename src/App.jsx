@@ -6,13 +6,13 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 
-// --- Firebase Setup (corrected) ---
+// --- Firebase Setup ---
 const firebaseConfig = {
   apiKey: "AIzaSyAiv_DQMuczXR3cFp3-4tu5qYzGCcga8kI",
   authDomain: "dash-scene-studio.firebaseapp.com",
   projectId: "dash-scene-studio",
-  storageBucket: "dash-scene-studio.firebasestorage.app"
-  messagingSenderId: "730304435",
+  storageBucket: "dash-scene-studio.firebasestorage.app", // ✅ correct bucket
+  messagingSenderId: "730304435", // ✅ <-- the comma was missing here
   appId: "1:730304435:web:eb79b75293b8f12b8145c6",
   measurementId: "G-SS5X5RVQLJ"
 };
