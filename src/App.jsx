@@ -4,20 +4,25 @@ import { initializeApp } from "firebase/app";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
-
 // --- Firebase Setup ---
 const firebaseConfig = {
   apiKey: "AIzaSyAiv_DQMuczXR3cFp3-4tu5qYzGCcga8kI",
   authDomain: "dash-scene-studio.firebaseapp.com",
   projectId: "dash-scene-studio",
-  storageBucket: "dash-scene-studio.firebasestorage.app", // ✅ correct bucket
-  messagingSenderId: "730304435", // ✅ <-- the comma was missing here
+  storageBucket: "dash-scene-studio.firebasestorage.app", // ✅ confirmed bucket
+  messagingSenderId: "730304435",
   appId: "1:730304435:web:eb79b75293b8f12b8145c6",
-  measurementId: "G-SS5X5RVQLJ"
+  measurementId: "G-SS5X5RVQLJ",
 };
+
 const app = initializeApp(firebaseConfig);
 const storage = getStorage(app);
+
+// --- Gemini Setup ---
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({
+  model: "gemini-2.5-flash-image-preview",
+});
 
 export default function App() {
   const [avatar, setAvatar] = useState(null);
@@ -29,7 +34,7 @@ export default function App() {
   const [imageURL, setImageURL] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Custom fields
+  // Custom inputs
   const [showStyleInput, setShowStyleInput] = useState(false);
   const [customStyle, setCustomStyle] = useState("");
   const [showPaletteInput, setShowPaletteInput] = useState(false);
@@ -37,7 +42,7 @@ export default function App() {
   const [showClothingInput, setShowClothingInput] = useState(false);
   const [customClothing, setCustomClothing] = useState("");
 
-  // ---- Upload Avatar ----
+  // ---- Step 1: Upload Avatar ----
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -49,12 +54,13 @@ export default function App() {
       setAvatar(downloadURL);
     } catch (err) {
       console.error("Upload error:", err);
+      alert("Upload failed. Check console for details.");
     } finally {
       setUploading(false);
     }
   };
 
-  // ---- Generate Scene ----
+  // ---- Step 5: Generate Scene (Gemini) ----
   const handleGenerateScene = async () => {
     if (!avatar) {
       alert("Please upload your avatar first.");
@@ -67,24 +73,20 @@ export default function App() {
     try {
       const response = await fetch(avatar);
       const blob = await response.blob();
-
       const reader = new FileReader();
+
       reader.onloadend = async () => {
         const base64 = reader.result.split(",")[1];
 
-        const chosenStyle = customStyle || style || "digital art";
-        const chosenPalette = customPalette || colorPalette || "soft pastel tones";
-        const chosenClothing = customClothing || clothingFocus || "modern outfit";
-
         const userPrompt = `
-Create a new 9:16 image using the uploaded avatar as a visual reference.
-Maintain the avatar’s face and likeness.
-Style theme: ${style || "Default"}.
-Color palette: ${colorPalette || "Default"}.
-Clothing focus: ${clothingFocus || "Default"}.
-Scene description: ${prompt || "Cinematic background, soft lighting."}
-Return a clear portrait composition.
-`;
+        Create a new 9:16 image using the uploaded avatar as a visual reference.
+        Maintain the avatar’s face and likeness.
+        Style theme: ${style || "Default"}.
+        Color palette: ${colorPalette || "Default"}.
+        Clothing focus: ${clothingFocus || "Default"}.
+        Scene description: ${prompt || "Cinematic background, soft lighting."}
+        Return a clear portrait composition.
+        `;
 
         const result = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${
@@ -96,12 +98,11 @@ Return a clear portrait composition.
             body: JSON.stringify({
               contents: [
                 {
-                  role: "user",
                   parts: [
                     { text: userPrompt },
                     {
-                      inline_data: {
-                        mime_type: blob.type,
+                      inlineData: {
+                        mimeType: blob.type,
                         data: base64,
                       },
                     },
@@ -113,13 +114,16 @@ Return a clear portrait composition.
         );
 
         const data = await result.json();
-        if (data?.candidates?.[0]?.content?.parts?.[0]?.inline_data?.data) {
-          const imageBase64 = data.candidates[0].content.parts[0].inline_data.data;
+
+        if (data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
+          const imageBase64 =
+            data.candidates[0].content.parts[0].inlineData.data;
           setImageURL(`data:image/png;base64,${imageBase64}`);
         } else {
-          console.error("Gemini response:", data);
-          alert("Gemini did not return an image. Try adjusting your style or prompt.");
+          console.error("Gemini API returned unexpected response:", data);
+          alert("Gemini did not return an image. Try adjusting your options.");
         }
+
         setLoading(false);
       };
 
@@ -131,7 +135,7 @@ Return a clear portrait composition.
     }
   };
 
-  // --- Style Options ---
+  // ---- Options Lists ----
   const styles = [
     "Dark Academia Aesthetic",
     "Kawaii",
@@ -151,10 +155,12 @@ Return a clear portrait composition.
   ];
 
   const colorPalettes = [
-    { name: "Ocean Mist", colors: ["#A7C7E7", "#F8BBD0", "#FCE4EC"], description: "Soft blues, pinks, and lavender hues." },
-    { name: "Candy Dream", colors: ["#FFC1E3", "#FFB6C1", "#FADADD"], description: "Pastel pinks, candy tones, and cream highlights." },
-    { name: "Sunset Sorbet", colors: ["#FDB9C8", "#FDD9A0", "#FFF5C3"], description: "Peachy warmth, coral, and soft yellow tones." },
-    { name: "Berry Glow", colors: ["#C71585", "#FF69B4", "#FFC0CB"], description: "Bold magentas and soft pink accents." },
+    { name: "Ocean Mist", colors: ["#5F9EA0", "#B0C4DE", "#E6E6FA"], description: "Soft blues, seafoam green, and lavender." },
+    { name: "Desert Sunset", colors: ["#CD5C5C", "#F4A460", "#F0E68C"], description: "Deep reds, vibrant oranges, and warm sand tones." },
+    { name: "Vibrant Pop", colors: ["#FF69B4", "#00FFFF", "#FFD700"], description: "Hot pink, electric cyan, and bright gold accents." },
+    { name: "Monochrome Cool", colors: ["#2F4F4F", "#A9A9A9", "#DCDCDC"], description: "Dark slate gray, neutral gray, and silvery white." },
+    { name: "Earthy Jewel Tones", colors: ["#8B4513", "#228B22", "#800080"], description: "Rich brown, deep forest green, and royal purple." },
+    { name: "Pastel Dreams", colors: ["#FADADD", "#B0E0E6", "#FAFAD2"], description: "Soft rose, baby blue, and pale yellow." },
   ];
 
   const clothingFocuses = [
@@ -167,330 +173,221 @@ Return a clear portrait composition.
     "Swimwear or Beach Attire",
   ];
 
-  // ---- UI ----
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center py-10 px-4 bg-gradient-to-br from-white via-[#ffe4ec] to-[#f8d1e5]">
-      <div className="w-full max-w-6xl bg-white/80 rounded-3xl shadow-lg p-8 border border-pink-200">
-        <h1 className="text-3xl font-bold text-center text-pink-600 mb-3">💗 DASH Scene Studio</h1>
-        <p className="text-center text-gray-500 mb-8">
-          Upload your avatar, pick your aesthetic, and generate your dream scene.
-        </p>
+    <div className="min-h-screen flex flex-col items-center py-10 px-4 bg-gradient-to-br from-white via-pink-50 to-pink-100">
+      <h1 className="text-2xl font-semibold text-center text-pink-600 mb-6">
+        ✿ DASH Scene Studio
+      </h1>
+      <p className="text-center text-gray-500 mb-8">
+        Upload your avatar, choose styles, and generate your next look.
+      </p>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* LEFT PANEL */}
-          <div className="space-y-6">
-            {/* Avatar Upload */}
-            <div className="p-6 bg-pink-50 rounded-2xl border border-pink-200">
-              <h2 className="font-semibold text-pink-600 mb-2">① Upload Your Avatar</h2>
-              <input type="file" accept="image/*" onChange={handleAvatarUpload} className="mb-3" />
-              {uploading ? (
-                <p className="text-sm text-gray-500 flex items-center gap-2">
-                  <Loader2 className="animate-spin" size={16} /> Uploading...
-                </p>
-              ) : avatar ? (
-                <img src={avatar} alt="avatar" className="rounded-xl w-full mt-2 border border-gray-200" />
-              ) : (
-                <div className="flex flex-col items-center justify-center border-2 border-dashed border-pink-300 rounded-xl p-6 text-gray-400">
-                  <Upload size={20} className="mb-2" />
-                  Upload or drag an image here
-                </div>
-              )}
-            </div>
-
-            {/* Style Section */}
-            {/* Step 2: Choose Style */}
-<div className={cardClass}>
-  <h2 className="font-semibold text-pink-600 mb-2">② Choose Your Style</h2>
-  <div className="grid grid-cols-2 gap-2">
-    {styles.map((s) => (
-      <button
-        key={s}
-        onClick={() => setStyle(s)}
-        className={`p-2 text-sm rounded-md border ${
-          style === s ? "bg-pink-100 border-pink-400" : "hover:bg-gray-100"
-        }`}
-      >
-        {s}
-      </button>
-    ))}
-  </div>
-
-  {!showStyleInput ? (
-    <button
-      onClick={() => setShowStyleInput(true)}
-      className="mt-3 flex items-center gap-2 text-pink-600 text-sm"
-    >
-      <PlusCircle size={16} /> Create My Own
-    </button>
-  ) : (
-    <div className="mt-3 flex items-center gap-2">
-      <input
-        type="text"
-        value={customStyle}
-        onChange={(e) => setCustomStyle(e.target.value)}
-        placeholder="Enter custom style..."
-        className="border rounded-md p-2 flex-1 text-sm"
-      />
-      <button
-        onClick={() => {
-          if (customStyle.trim()) {
-            setStyle(customStyle);
-            setShowStyleInput(false);
-            setCustomStyle("");
-          }
-        }}
-        className="bg-pink-500 text-white px-3 py-2 rounded-md text-sm"
-      >
-        Add
-      </button>
-    </div>
-  )}
-</div>
-
-
-{!showStyleInput ? (
-  <button
-    onClick={() => setShowStyleInput(true)}
-    className="mt-3 flex items-center gap-2 text-pink-600 text-sm"
-  >
-    <PlusCircle size={16} /> Create My Own
-  </button>
-) : (
-  <div className="mt-3 flex items-center gap-2">
-    <input
-      type="text"
-      value={customStyle}
-      onChange={(e) => setCustomStyle(e.target.value)}
-      placeholder="Enter custom style..."
-      className="border rounded-md p-2 flex-1 text-sm"
-    />
-    <button
-      onClick={() => {
-        if (customStyle.trim()) {
-          setStyle(customStyle);
-          setShowStyleInput(false);
-          setCustomStyle("");
-        }
-      }}
-      className="bg-pink-500 text-white px-3 py-2 rounded-md text-sm"
-    >
-      Add
-    </button>
-  </div>
-)}
-            {/* Step 3: Choose Color Palette */}
-<div className={cardClass}>
-  <h2 className="font-semibold text-pink-600 mb-2">③ Choose Color Palette</h2>
-  <div className="space-y-3">
-    {colorPalettes.map((p) => (
-      <button
-        key={p.name}
-        onClick={() => setColorPalette(p.name)}
-        className={`w-full flex items-center justify-between rounded-md border p-2 text-sm ${
-          colorPalette === p.name ? "bg-pink-100 border-pink-400" : "hover:bg-gray-100"
-        }`}
-      >
-        <span className="text-left">
-          <strong>{p.name}</strong>
-          <div className="text-xs text-gray-500">{p.description}</div>
-        </span>
-        <div className="flex gap-1">
-          {p.colors.map((c, i) => (
-            <span
-              key={i}
-              className="w-4 h-4 rounded-full border"
-              style={{ backgroundColor: c }}
-            ></span>
-          ))}
-        </div>
-      </button>
-    ))}
-  </div>
-
-  {!showPaletteInput ? (
-    <button
-      onClick={() => setShowPaletteInput(true)}
-      className="mt-3 flex items-center gap-2 text-pink-600 text-sm"
-    >
-      <PlusCircle size={16} /> Create My Own
-    </button>
-  ) : (
-    <div className="mt-3 flex items-center gap-2">
-      <input
-        type="text"
-        value={customPalette}
-        onChange={(e) => setCustomPalette(e.target.value)}
-        placeholder="Enter custom palette..."
-        className="border rounded-md p-2 flex-1 text-sm"
-      />
-      <button
-        onClick={() => {
-          if (customPalette.trim()) {
-            setColorPalette(customPalette);
-            setShowPaletteInput(false);
-            setCustomPalette("");
-          }
-        }}
-        className="bg-pink-500 text-white px-3 py-2 rounded-md text-sm"
-      >
-        Add
-      </button>
-    </div>
-  )}
-</div>
-
-
-
-              {!showPaletteInput ? (
-                <button
-                  onClick={() => setShowPaletteInput(true)}
-                  className="mt-3 flex items-center gap-2 text-pink-600 text-sm"
-                >
-                  <PlusCircle size={16} /> Create My Own
-                </button>
-              ) : (
-                <div className="mt-3 flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={customPalette}
-                    onChange={(e) => setCustomPalette(e.target.value)}
-                    placeholder="Enter custom color palette..."
-                    className="border rounded-md p-2 flex-1 text-sm"
-                  />
-                  <button
-                    onClick={() => {
-                      if (customPalette.trim()) {
-                        setColorPalette(customPalette);
-                        setShowPaletteInput(false);
-                        setCustomPalette("");
-                      }
-                    }}
-                    className="bg-pink-500 text-white px-3 py-2 rounded-md text-sm"
-                  >
-                    Add
-                  </button>
-                </div>
-              )}
-            </div>
-
-           {/* Step 4: Choose Clothing Focus */}
-<div className={cardClass}>
-  <h2 className="font-semibold text-pink-600 mb-2">④ Choose Clothing Focus</h2>
-  <div className="grid grid-cols-2 gap-2">
-    {clothingFocuses.map((c) => (
-      <button
-        key={c}
-        onClick={() => setClothingFocus(c)}
-        className={`p-2 text-sm rounded-md border ${
-          clothingFocus === c ? "bg-pink-100 border-pink-400" : "hover:bg-gray-100"
-        }`}
-      >
-        {c}
-      </button>
-    ))}
-  </div>
-
-  {!showClothingInput ? (
-    <button
-      onClick={() => setShowClothingInput(true)}
-      className="mt-3 flex items-center gap-2 text-pink-600 text-sm"
-    >
-      <PlusCircle size={16} /> Create My Own
-    </button>
-  ) : (
-    <div className="mt-3 flex items-center gap-2">
-      <input
-        type="text"
-        value={customClothing}
-        onChange={(e) => setCustomClothing(e.target.value)}
-        placeholder="Enter custom clothing..."
-        className="border rounded-md p-2 flex-1 text-sm"
-      />
-      <button
-        onClick={() => {
-          if (customClothing.trim()) {
-            setClothingFocus(customClothing);
-            setShowClothingInput(false);
-            setCustomClothing("");
-          }
-        }}
-        className="bg-pink-500 text-white px-3 py-2 rounded-md text-sm"
-      >
-        Add
-      </button>
-    </div>
-  )}
-</div>
-
-
-              {!showClothingInput ? (
-                <button
-                  onClick={() => setShowClothingInput(true)}
-                  className="mt-3 flex items-center gap-2 text-pink-600 text-sm"
-                >
-                  <PlusCircle size={16} /> Create My Own
-                </button>
-              ) : (
-                <div className="mt-3 flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={customClothing}
-                    onChange={(e) => setCustomClothing(e.target.value)}
-                    placeholder="Enter custom clothing style..."
-                    className="border rounded-md p-2 flex-1 text-sm"
-                  />
-                  <button
-                    onClick={() => {
-                      if (customClothing.trim()) {
-                        setClothingFocus(customClothing);
-                        setShowClothingInput(false);
-                        setCustomClothing("");
-                      }
-                    }}
-                    className="bg-pink-500 text-white px-3 py-2 rounded-md text-sm"
-                  >
-                    Add
-                  </button>
-                </div>
-              )}
-            </div>
+      <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* LEFT COLUMN */}
+        <div className="space-y-6">
+          {/* Step 1: Upload Avatar */}
+          <div className="bg-white p-6 rounded-xl shadow-md space-y-3 border border-pink-200">
+            <h2 className="font-semibold text-pink-600 mb-2">① Upload Your Avatar</h2>
+            <input type="file" accept="image/*" onChange={handleAvatarUpload} />
+            {uploading ? (
+              <p className="text-sm text-gray-500 flex items-center gap-2">
+                <Loader2 className="animate-spin" size={16} /> Uploading...
+              </p>
+            ) : avatar ? (
+              <img src={avatar} alt="avatar" className="rounded-xl w-full border mt-2" />
+            ) : (
+              <div className="flex flex-col items-center justify-center border-2 border-dashed border-pink-300 rounded-xl p-6 text-gray-400">
+                <Upload size={20} className="mb-2" />
+                Upload or drag an image here
+              </div>
+            )}
           </div>
 
-          {/* RIGHT PANEL */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="p-6 bg-pink-50 rounded-2xl border border-pink-200">
-              <h2 className="font-semibold text-pink-600 mb-2">⑤ Describe the Scene (Optional)</h2>
-              <textarea
-                className="w-full border rounded-md p-3 text-sm mb-4"
-                placeholder="E.g., Standing under soft pink lights in a digital art studio..."
-                rows="3"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-              />
-              <button
-                onClick={handleGenerateScene}
-                disabled={loading}
-                className="w-full bg-pink-500 text-white font-medium py-2 rounded-lg hover:bg-pink-600 transition flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                {loading ? <Loader2 className="animate-spin" size={18} /> : <ImagePlus size={18} />}
-                {loading ? "Generating..." : "Generate Scene (9:16)"}
-              </button>
+          {/* Step 2: Choose Style */}
+          <div className="bg-white p-6 rounded-xl shadow-md space-y-3 border border-pink-200">
+            <h2 className="font-semibold text-pink-600 mb-2">② Choose Style</h2>
+            <div className="grid grid-cols-2 gap-2">
+              {styles.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStyle(s)}
+                  className={`p-2 text-sm rounded-md border ${
+                    style === s ? "bg-pink-100 border-pink-400" : "hover:bg-pink-50"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
             </div>
-
-            {/* Generated Image */}
-            <div className="bg-white p-5 rounded-2xl shadow-md text-center border border-pink-200">
-              <h2 className="font-semibold text-pink-600 mb-2">⑥ Generated Scene</h2>
-              {loading ? (
-                <div className="flex justify-center items-center h-96 text-gray-500">
-                  <Loader2 className="animate-spin mr-2" /> Generating...
-                </div>
-              ) : imageURL ? (
-                <img
-                  src={imageURL}
-                  alt="Generated scene"
-                  className="rounded-xl mx-auto border w-auto h-[600px] object-cover"
+            {!showStyleInput ? (
+              <button
+                onClick={() => setShowStyleInput(true)}
+                className="mt-3 flex items-center gap-2 text-pink-600 text-sm"
+              >
+                <PlusCircle size={16} /> Create My Own
+              </button>
+            ) : (
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  type="text"
+                  value={customStyle}
+                  onChange={(e) => setCustomStyle(e.target.value)}
+                  placeholder="Enter custom style..."
+                  className="border rounded-md p-2 flex-1 text-sm"
                 />
-                          ) : (
+                <button
+                  onClick={() => {
+                    if (customStyle.trim()) {
+                      setStyle(customStyle);
+                      setShowStyleInput(false);
+                      setCustomStyle("");
+                    }
+                  }}
+                  className="bg-pink-500 text-white px-3 py-2 rounded-md text-sm"
+                >
+                  Add
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Step 3: Choose Color Palette */}
+          <div className="bg-white p-6 rounded-xl shadow-md space-y-3 border border-pink-200">
+            <h2 className="font-semibold text-pink-600 mb-2">③ Choose Color Palette</h2>
+            {colorPalettes.map((p) => (
+              <button
+                key={p.name}
+                onClick={() => setColorPalette(p.name)}
+                className={`w-full flex items-center justify-between rounded-md border p-2 text-sm ${
+                  colorPalette === p.name ? "bg-pink-100 border-pink-400" : "hover:bg-pink-50"
+                }`}
+              >
+                <span className="text-left">
+                  <strong>{p.name}</strong>
+                  <div className="text-xs text-gray-500">{p.description}</div>
+                </span>
+                <div className="flex gap-1">
+                  {p.colors.map((c, i) => (
+                    <span key={i} className="w-4 h-4 rounded-full border" style={{ backgroundColor: c }}></span>
+                  ))}
+                </div>
+              </button>
+            ))}
+            {!showPaletteInput ? (
+              <button
+                onClick={() => setShowPaletteInput(true)}
+                className="mt-3 flex items-center gap-2 text-pink-600 text-sm"
+              >
+                <PlusCircle size={16} /> Create My Own
+              </button>
+            ) : (
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  type="text"
+                  value={customPalette}
+                  onChange={(e) => setCustomPalette(e.target.value)}
+                  placeholder="Enter custom palette..."
+                  className="border rounded-md p-2 flex-1 text-sm"
+                />
+                <button
+                  onClick={() => {
+                    if (customPalette.trim()) {
+                      setColorPalette(customPalette);
+                      setShowPaletteInput(false);
+                      setCustomPalette("");
+                    }
+                  }}
+                  className="bg-pink-500 text-white px-3 py-2 rounded-md text-sm"
+                >
+                  Add
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Step 4: Clothing Focus */}
+          <div className="bg-white p-6 rounded-xl shadow-md space-y-3 border border-pink-200">
+            <h2 className="font-semibold text-pink-600 mb-2">④ Choose Clothing Focus</h2>
+            <div className="grid grid-cols-2 gap-2">
+              {clothingFocuses.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setClothingFocus(c)}
+                  className={`p-2 text-sm rounded-md border ${
+                    clothingFocus === c ? "bg-pink-100 border-pink-400" : "hover:bg-pink-50"
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+            {!showClothingInput ? (
+              <button
+                onClick={() => setShowClothingInput(true)}
+                className="mt-3 flex items-center gap-2 text-pink-600 text-sm"
+              >
+                <PlusCircle size={16} /> Create My Own
+              </button>
+            ) : (
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  type="text"
+                  value={customClothing}
+                  onChange={(e) => setCustomClothing(e.target.value)}
+                  placeholder="Enter custom clothing..."
+                  className="border rounded-md p-2 flex-1 text-sm"
+                />
+                <button
+                  onClick={() => {
+                    if (customClothing.trim()) {
+                      setClothingFocus(customClothing);
+                      setShowClothingInput(false);
+                      setCustomClothing("");
+                    }
+                  }}
+                  className="bg-pink-500 text-white px-3 py-2 rounded-md text-sm"
+                >
+                  Add
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white p-6 rounded-xl shadow-md border border-pink-200">
+            <h2 className="font-semibold text-pink-600 mb-2">⑤ Describe the Scene</h2>
+            <textarea
+              className="w-full border rounded-md p-3 text-sm mb-4"
+              placeholder="E.g., Standing on a futuristic bridge overlooking city lights..."
+              rows="3"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+            />
+            <button
+              onClick={handleGenerateScene}
+              disabled={loading}
+              className="w-full bg-pink-500 text-white font-medium py-2 rounded-lg hover:bg-pink-600 transition flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              {loading ? <Loader2 className="animate-spin" size={18} /> : <ImagePlus size={18} />}
+              {loading ? "Generating..." : "Generate Scene (9:16)"}
+            </button>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl shadow-md text-center border border-pink-200">
+            <h2 className="font-semibold text-pink-600 mb-2">⑥ Generated Scene</h2>
+            {loading ? (
+              <div className="flex justify-center items-center h-96 text-gray-500">
+                <Loader2 className="animate-spin mr-2" /> Generating...
+              </div>
+            ) : imageURL ? (
+              <img
+                src={imageURL}
+                alt="Generated scene"
+                className="rounded-xl mx-auto border w-auto h-[600px] object-cover"
+              />
+            ) : (
               <div className="flex flex-col justify-center items-center border-2 border-dashed border-pink-300 rounded-xl h-96 text-gray-400">
                 <ImagePlus size={22} className="mb-2" />
                 Your generated scene will appear here.
