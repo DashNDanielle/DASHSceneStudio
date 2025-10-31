@@ -198,24 +198,55 @@ Return a clear portrait composition.
             </div>
 
             {/* Style Section */}
-            <div className="p-6 bg-pink-50 rounded-2xl border border-pink-200">
-              <h2 className="font-semibold text-pink-600 mb-2">② Choose Your Style</h2>
-              <div className="grid grid-cols-2 gap-2">
-                {styles.map((s) => (
-                  <div className="grid grid-cols-2 gap-2">
-  {styles.map((s) => (
+            {/* Step 2: Choose Style */}
+<div className={cardClass}>
+  <h2 className="font-semibold text-pink-600 mb-2">② Choose Your Style</h2>
+  <div className="grid grid-cols-2 gap-2">
+    {styles.map((s) => (
+      <button
+        key={s}
+        onClick={() => setStyle(s)}
+        className={`p-2 text-sm rounded-md border ${
+          style === s ? "bg-pink-100 border-pink-400" : "hover:bg-gray-100"
+        }`}
+      >
+        {s}
+      </button>
+    ))}
+  </div>
+
+  {!showStyleInput ? (
     <button
-      key={s}
-      onClick={() => setStyle(s)}
-      className={`p-2 text-sm rounded-md border transition ${
-        style === s
-          ? "bg-pink-200 border-pink-500 text-pink-800"
-          : "hover:bg-pink-100 border-gray-300 text-gray-700"
-      }`}
+      onClick={() => setShowStyleInput(true)}
+      className="mt-3 flex items-center gap-2 text-pink-600 text-sm"
     >
-      {s}
+      <PlusCircle size={16} /> Create My Own
     </button>
- </div>
+  ) : (
+    <div className="mt-3 flex items-center gap-2">
+      <input
+        type="text"
+        value={customStyle}
+        onChange={(e) => setCustomStyle(e.target.value)}
+        placeholder="Enter custom style..."
+        className="border rounded-md p-2 flex-1 text-sm"
+      />
+      <button
+        onClick={() => {
+          if (customStyle.trim()) {
+            setStyle(customStyle);
+            setShowStyleInput(false);
+            setCustomStyle("");
+          }
+        }}
+        className="bg-pink-500 text-white px-3 py-2 rounded-md text-sm"
+      >
+        Add
+      </button>
+    </div>
+  )}
+</div>
+
 
 {!showStyleInput ? (
   <button
