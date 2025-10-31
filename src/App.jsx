@@ -496,7 +496,6 @@ Return a clear portrait composition.
                   Your generated scene will appear here.
                 </div>
               )}
-            </div>
           </div>
         </div>
       </div>
