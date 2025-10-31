@@ -56,7 +56,7 @@ export default function App() {
   let lastClick = 0;
   const handleGenerateScene = async () => {
     const now = Date.now();
-    if (now - lastClick < 3000) return; // Prevent double-clicks
+    if (now - lastClick < 3000) return;
     lastClick = now;
 
     if (!avatar) {
@@ -75,13 +75,14 @@ export default function App() {
       reader.onloadend = async () => {
         const base64 = reader.result.split(",")[1];
         const userPrompt = `
-        Create a new 9:16 image using the uploaded avatar as a visual reference.
-        Maintain the avatar’s face and likeness.
+        Create a new image using the uploaded avatar as a visual reference.
+        Maintain the avatar’s facial likeness and proportions.
         Style theme: ${style || "Default"}.
         Color palette: ${colorPalette || "Default"}.
         Clothing focus: ${clothingFocus || "Default"}.
         Scene description: ${prompt || "Cinematic background, soft lighting."}
-        Return a clear portrait composition.
+        Output format: portrait 9:16 aspect ratio.
+        Timestamp: ${Date.now()}
         `;
 
         const result = await fetch(
@@ -111,7 +112,7 @@ export default function App() {
           setImageURL(`data:image/png;base64,${imageBase64}`);
         } else {
           console.error("Gemini returned unexpected response:", data);
-          alert("Gemini did not return an image. Try changing your style or description.");
+          alert("Gemini did not return an image. Try changing your scene description.");
         }
         setLoading(false);
       };
@@ -124,7 +125,7 @@ export default function App() {
     }
   };
 
-  // ---- Lists ----
+  // ---- Options Lists ----
   const styles = [
     "Dark Academia Aesthetic",
     "Kawaii",
@@ -203,7 +204,7 @@ export default function App() {
                   onClick={() => setStyle(s)}
                   className={`p-2 text-sm rounded-md border font-medium transition-all ${
                     style === s
-                      ? "bg-pink-500 text-white border-pink-600 shadow-md scale-[1.03]"
+                      ? "bg-pink-500 text-white border-pink-600 shadow-lg"
                       : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
                   }`}
                 >
@@ -222,7 +223,7 @@ export default function App() {
                 onClick={() => setColorPalette(p.name)}
                 className={`w-full flex items-center justify-between rounded-md border p-2 text-sm font-medium transition-all ${
                   colorPalette === p.name
-                    ? "bg-pink-500 text-white border-pink-600 shadow-md scale-[1.03]"
+                    ? "bg-pink-500 text-white border-pink-600 shadow-lg"
                     : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
                 }`}
               >
@@ -249,7 +250,7 @@ export default function App() {
                   onClick={() => setClothingFocus(c)}
                   className={`p-2 text-sm rounded-md border font-medium transition-all ${
                     clothingFocus === c
-                      ? "bg-pink-500 text-white border-pink-600 shadow-md scale-[1.03]"
+                      ? "bg-pink-500 text-white border-pink-600 shadow-lg"
                       : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
                   }`}
                 >
