@@ -373,25 +373,53 @@ Return a clear portrait composition.
               )}
             </div>
 
-            {/* Clothing Focus */}
-            <div className="p-6 bg-pink-50 rounded-2xl border border-pink-200">
-              <h2 className="font-semibold text-pink-600 mb-2">④ Choose Clothing Focus</h2>
-              <div className="grid grid-cols-2 gap-2">
-                {clothingFocuses.map((c) => (
-                  <div className="grid grid-cols-2 gap-2">
-  {clothingFocuses.map((c) => (
+           {/* Step 4: Choose Clothing Focus */}
+<div className={cardClass}>
+  <h2 className="font-semibold text-pink-600 mb-2">④ Choose Clothing Focus</h2>
+  <div className="grid grid-cols-2 gap-2">
+    {clothingFocuses.map((c) => (
+      <button
+        key={c}
+        onClick={() => setClothingFocus(c)}
+        className={`p-2 text-sm rounded-md border ${
+          clothingFocus === c ? "bg-pink-100 border-pink-400" : "hover:bg-gray-100"
+        }`}
+      >
+        {c}
+      </button>
+    ))}
+  </div>
+
+  {!showClothingInput ? (
     <button
-      key={c}
-      onClick={() => setClothingFocus(c)}
-      className={`p-2 text-sm rounded-md border transition ${
-        clothingFocus === c
-          ? "bg-pink-200 border-pink-500 text-pink-800"
-          : "hover:bg-pink-100 border-gray-300 text-gray-700"
-      }`}
+      onClick={() => setShowClothingInput(true)}
+      className="mt-3 flex items-center gap-2 text-pink-600 text-sm"
     >
-      {c}
+      <PlusCircle size={16} /> Create My Own
     </button>
-  ))}
+  ) : (
+    <div className="mt-3 flex items-center gap-2">
+      <input
+        type="text"
+        value={customClothing}
+        onChange={(e) => setCustomClothing(e.target.value)}
+        placeholder="Enter custom clothing..."
+        className="border rounded-md p-2 flex-1 text-sm"
+      />
+      <button
+        onClick={() => {
+          if (customClothing.trim()) {
+            setClothingFocus(customClothing);
+            setShowClothingInput(false);
+            setCustomClothing("");
+          }
+        }}
+        className="bg-pink-500 text-white px-3 py-2 rounded-md text-sm"
+      >
+        Add
+      </button>
+    </div>
+  )}
 </div>
 
 
