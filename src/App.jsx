@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Loader2, Upload, ImagePlus, PlusCircle } from "lucide-react";
+import { Loader2, Upload, ImagePlus } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -34,13 +34,6 @@ export default function App() {
   const [imageURL, setImageURL] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const [showStyleInput, setShowStyleInput] = useState(false);
-  const [customStyle, setCustomStyle] = useState("");
-  const [showPaletteInput, setShowPaletteInput] = useState(false);
-  const [customPalette, setCustomPalette] = useState("");
-  const [showClothingInput, setShowClothingInput] = useState(false);
-  const [customClothing, setCustomClothing] = useState("");
-
   // ---- Upload Avatar ----
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
@@ -59,8 +52,13 @@ export default function App() {
     }
   };
 
-  // ---- Generate Scene ----
+  // ---- Generate Scene (Debounced) ----
+  let lastClick = 0;
   const handleGenerateScene = async () => {
+    const now = Date.now();
+    if (now - lastClick < 3000) return; // Prevent double-clicks
+    lastClick = now;
+
     if (!avatar) {
       alert("Please upload your avatar first.");
       return;
@@ -76,7 +74,6 @@ export default function App() {
 
       reader.onloadend = async () => {
         const base64 = reader.result.split(",")[1];
-
         const userPrompt = `
         Create a new 9:16 image using the uploaded avatar as a visual reference.
         Maintain the avatar’s face and likeness.
@@ -99,12 +96,7 @@ export default function App() {
                 {
                   parts: [
                     { text: userPrompt },
-                    {
-                      inlineData: {
-                        mimeType: blob.type,
-                        data: base64,
-                      },
-                    },
+                    { inlineData: { mimeType: blob.type, data: base64 } },
                   ],
                 },
               ],
@@ -113,16 +105,14 @@ export default function App() {
         );
 
         const data = await result.json();
-
         if (data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
           const imageBase64 =
             data.candidates[0].content.parts[0].inlineData.data;
           setImageURL(`data:image/png;base64,${imageBase64}`);
         } else {
           console.error("Gemini returned unexpected response:", data);
-          alert("Gemini did not return an image. Try changing your style or scene description.");
+          alert("Gemini did not return an image. Try changing your style or description.");
         }
-
         setLoading(false);
       };
 
@@ -211,9 +201,9 @@ export default function App() {
                 <button
                   key={s}
                   onClick={() => setStyle(s)}
-                  className={`p-2 text-sm rounded-md border transition-all ${
+                  className={`p-2 text-sm rounded-md border font-medium transition-all ${
                     style === s
-                      ? "bg-pink-500 text-white border-pink-600"
+                      ? "bg-pink-500 text-white border-pink-600 shadow-md scale-[1.03]"
                       : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
                   }`}
                 >
@@ -230,9 +220,9 @@ export default function App() {
               <button
                 key={p.name}
                 onClick={() => setColorPalette(p.name)}
-                className={`w-full flex items-center justify-between rounded-md border p-2 text-sm transition-all ${
+                className={`w-full flex items-center justify-between rounded-md border p-2 text-sm font-medium transition-all ${
                   colorPalette === p.name
-                    ? "bg-pink-500 text-white border-pink-600"
+                    ? "bg-pink-500 text-white border-pink-600 shadow-md scale-[1.03]"
                     : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
                 }`}
               >
@@ -257,9 +247,9 @@ export default function App() {
                 <button
                   key={c}
                   onClick={() => setClothingFocus(c)}
-                  className={`p-2 text-sm rounded-md border transition-all ${
+                  className={`p-2 text-sm rounded-md border font-medium transition-all ${
                     clothingFocus === c
-                      ? "bg-pink-500 text-white border-pink-600"
+                      ? "bg-pink-500 text-white border-pink-600 shadow-md scale-[1.03]"
                       : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
                   }`}
                 >
