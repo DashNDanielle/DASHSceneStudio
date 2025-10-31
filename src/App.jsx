@@ -278,37 +278,67 @@ Return a clear portrait composition.
     </button>
   </div>
 )}
-            {/* Color Palette */}
-            <div className="p-6 bg-pink-50 rounded-2xl border border-pink-200">
-              <h2 className="font-semibold text-pink-600 mb-2">③ Choose Color Palette</h2>
-              {colorPalettes.map((p) => (
-               <div className="space-y-3">
-  {colorPalettes.map((p) => (
+            {/* Step 3: Choose Color Palette */}
+<div className={cardClass}>
+  <h2 className="font-semibold text-pink-600 mb-2">③ Choose Color Palette</h2>
+  <div className="space-y-3">
+    {colorPalettes.map((p) => (
+      <button
+        key={p.name}
+        onClick={() => setColorPalette(p.name)}
+        className={`w-full flex items-center justify-between rounded-md border p-2 text-sm ${
+          colorPalette === p.name ? "bg-pink-100 border-pink-400" : "hover:bg-gray-100"
+        }`}
+      >
+        <span className="text-left">
+          <strong>{p.name}</strong>
+          <div className="text-xs text-gray-500">{p.description}</div>
+        </span>
+        <div className="flex gap-1">
+          {p.colors.map((c, i) => (
+            <span
+              key={i}
+              className="w-4 h-4 rounded-full border"
+              style={{ backgroundColor: c }}
+            ></span>
+          ))}
+        </div>
+      </button>
+    ))}
+  </div>
+
+  {!showPaletteInput ? (
     <button
-      key={p.name}
-      onClick={() => setColorPalette(p.name)}
-      className={`w-full flex items-center justify-between rounded-md border p-2 text-sm transition ${
-        colorPalette === p.name
-          ? "bg-pink-200 border-pink-500 text-pink-800"
-          : "hover:bg-pink-100 border-gray-300 text-gray-700"
-      }`}
+      onClick={() => setShowPaletteInput(true)}
+      className="mt-3 flex items-center gap-2 text-pink-600 text-sm"
     >
-      <span className="text-left">
-        <strong>{p.name}</strong>
-        <div className="text-xs text-gray-500">{p.description}</div>
-      </span>
-      <div className="flex gap-1">
-        {p.colors.map((c, i) => (
-          <span
-            key={i}
-            className="w-4 h-4 rounded-full border"
-            style={{ backgroundColor: c }}
-          ></span>
-        ))}
-      </div>
+      <PlusCircle size={16} /> Create My Own
     </button>
-  ))}
+  ) : (
+    <div className="mt-3 flex items-center gap-2">
+      <input
+        type="text"
+        value={customPalette}
+        onChange={(e) => setCustomPalette(e.target.value)}
+        placeholder="Enter custom palette..."
+        className="border rounded-md p-2 flex-1 text-sm"
+      />
+      <button
+        onClick={() => {
+          if (customPalette.trim()) {
+            setColorPalette(customPalette);
+            setShowPaletteInput(false);
+            setCustomPalette("");
+          }
+        }}
+        className="bg-pink-500 text-white px-3 py-2 rounded-md text-sm"
+      >
+        Add
+      </button>
+    </div>
+  )}
 </div>
+
 
 
               {!showPaletteInput ? (
