@@ -9,7 +9,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyAiv_DQMuczXR3cFp3-4tu5qYzGCcga8kI",
   authDomain: "dash-scene-studio.firebaseapp.com",
   projectId: "dash-scene-studio",
-  storageBucket: "dash-scene-studio.firebasestorage.app", // ✅ confirmed bucket
+  storageBucket: "dash-scene-studio.firebasestorage.app",
   messagingSenderId: "730304435",
   appId: "1:730304435:web:eb79b75293b8f12b8145c6",
   measurementId: "G-SS5X5RVQLJ",
@@ -34,7 +34,6 @@ export default function App() {
   const [imageURL, setImageURL] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Custom inputs
   const [showStyleInput, setShowStyleInput] = useState(false);
   const [customStyle, setCustomStyle] = useState("");
   const [showPaletteInput, setShowPaletteInput] = useState(false);
@@ -42,7 +41,7 @@ export default function App() {
   const [showClothingInput, setShowClothingInput] = useState(false);
   const [customClothing, setCustomClothing] = useState("");
 
-  // ---- Step 1: Upload Avatar ----
+  // ---- Upload Avatar ----
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -60,7 +59,7 @@ export default function App() {
     }
   };
 
-  // ---- Step 5: Generate Scene (Gemini) ----
+  // ---- Generate Scene ----
   const handleGenerateScene = async () => {
     if (!avatar) {
       alert("Please upload your avatar first.");
@@ -120,8 +119,8 @@ export default function App() {
             data.candidates[0].content.parts[0].inlineData.data;
           setImageURL(`data:image/png;base64,${imageBase64}`);
         } else {
-          console.error("Gemini API returned unexpected response:", data);
-          alert("Gemini did not return an image. Try adjusting your options.");
+          console.error("Gemini returned unexpected response:", data);
+          alert("Gemini did not return an image. Try changing your style or scene description.");
         }
 
         setLoading(false);
@@ -135,7 +134,7 @@ export default function App() {
     }
   };
 
-  // ---- Options Lists ----
+  // ---- Lists ----
   const styles = [
     "Dark Academia Aesthetic",
     "Kawaii",
@@ -173,20 +172,21 @@ export default function App() {
     "Swimwear or Beach Attire",
   ];
 
+  // ---- UI ----
   return (
     <div className="min-h-screen flex flex-col items-center py-10 px-4 bg-gradient-to-br from-white via-pink-50 to-pink-100">
-      <h1 className="text-2xl font-semibold text-center text-pink-600 mb-6">
+      <h1 className="text-3xl font-bold text-center text-pink-600 mb-6">
         ✿ DASH Scene Studio
       </h1>
-      <p className="text-center text-gray-500 mb-8">
-        Upload your avatar, choose styles, and generate your next look.
+      <p className="text-center text-gray-600 mb-8">
+        Upload your avatar, pick your vibe, and let Gemini bring it to life.
       </p>
 
       <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* LEFT COLUMN */}
+        {/* LEFT SIDE */}
         <div className="space-y-6">
-          {/* Step 1: Upload Avatar */}
-          <div className="bg-white p-6 rounded-xl shadow-md space-y-3 border border-pink-200">
+          {/* Upload Avatar */}
+          <div className="bg-white p-6 rounded-xl shadow-md border border-pink-200">
             <h2 className="font-semibold text-pink-600 mb-2">① Upload Your Avatar</h2>
             <input type="file" accept="image/*" onChange={handleAvatarUpload} />
             {uploading ? (
@@ -203,68 +203,42 @@ export default function App() {
             )}
           </div>
 
-          {/* Step 2: Choose Style */}
-          <div className="bg-white p-6 rounded-xl shadow-md space-y-3 border border-pink-200">
+          {/* Style Picker */}
+          <div className="bg-white p-6 rounded-xl shadow-md border border-pink-200">
             <h2 className="font-semibold text-pink-600 mb-2">② Choose Style</h2>
             <div className="grid grid-cols-2 gap-2">
               {styles.map((s) => (
                 <button
                   key={s}
                   onClick={() => setStyle(s)}
-                  className={`p-2 text-sm rounded-md border ${
-                    style === s ? "bg-pink-100 border-pink-400" : "hover:bg-pink-50"
+                  className={`p-2 text-sm rounded-md border transition-all ${
+                    style === s
+                      ? "bg-pink-500 text-white border-pink-600"
+                      : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
                   }`}
                 >
                   {s}
                 </button>
               ))}
             </div>
-            {!showStyleInput ? (
-              <button
-                onClick={() => setShowStyleInput(true)}
-                className="mt-3 flex items-center gap-2 text-pink-600 text-sm"
-              >
-                <PlusCircle size={16} /> Create My Own
-              </button>
-            ) : (
-              <div className="mt-3 flex items-center gap-2">
-                <input
-                  type="text"
-                  value={customStyle}
-                  onChange={(e) => setCustomStyle(e.target.value)}
-                  placeholder="Enter custom style..."
-                  className="border rounded-md p-2 flex-1 text-sm"
-                />
-                <button
-                  onClick={() => {
-                    if (customStyle.trim()) {
-                      setStyle(customStyle);
-                      setShowStyleInput(false);
-                      setCustomStyle("");
-                    }
-                  }}
-                  className="bg-pink-500 text-white px-3 py-2 rounded-md text-sm"
-                >
-                  Add
-                </button>
-              </div>
-            )}
           </div>
 
-          {/* Step 3: Choose Color Palette */}
-          <div className="bg-white p-6 rounded-xl shadow-md space-y-3 border border-pink-200">
+          {/* Color Picker */}
+          <div className="bg-white p-6 rounded-xl shadow-md border border-pink-200">
             <h2 className="font-semibold text-pink-600 mb-2">③ Choose Color Palette</h2>
             {colorPalettes.map((p) => (
               <button
                 key={p.name}
                 onClick={() => setColorPalette(p.name)}
-                className={`w-full flex items-center justify-between rounded-md border p-2 text-sm ${
-                  colorPalette === p.name ? "bg-pink-100 border-pink-400" : "hover:bg-pink-50"
+                className={`w-full flex items-center justify-between rounded-md border p-2 text-sm transition-all ${
+                  colorPalette === p.name
+                    ? "bg-pink-500 text-white border-pink-600"
+                    : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
                 }`}
               >
-                <span className="text-left">
+                <span>
                   <strong>{p.name}</strong>
-                  <div className="text-xs text-gray-500">{p.description}</div>
+                  <div className="text-xs opacity-80">{p.description}</div>
                 </span>
                 <div className="flex gap-1">
                   {p.colors.map((c, i) => (
@@ -273,88 +247,30 @@ export default function App() {
                 </div>
               </button>
             ))}
-            {!showPaletteInput ? (
-              <button
-                onClick={() => setShowPaletteInput(true)}
-                className="mt-3 flex items-center gap-2 text-pink-600 text-sm"
-              >
-                <PlusCircle size={16} /> Create My Own
-              </button>
-            ) : (
-              <div className="mt-3 flex items-center gap-2">
-                <input
-                  type="text"
-                  value={customPalette}
-                  onChange={(e) => setCustomPalette(e.target.value)}
-                  placeholder="Enter custom palette..."
-                  className="border rounded-md p-2 flex-1 text-sm"
-                />
-                <button
-                  onClick={() => {
-                    if (customPalette.trim()) {
-                      setColorPalette(customPalette);
-                      setShowPaletteInput(false);
-                      setCustomPalette("");
-                    }
-                  }}
-                  className="bg-pink-500 text-white px-3 py-2 rounded-md text-sm"
-                >
-                  Add
-                </button>
-              </div>
-            )}
           </div>
 
-          {/* Step 4: Clothing Focus */}
-          <div className="bg-white p-6 rounded-xl shadow-md space-y-3 border border-pink-200">
-            <h2 className="font-semibold text-pink-600 mb-2">④ Choose Clothing Focus</h2>
+          {/* Clothing */}
+          <div className="bg-white p-6 rounded-xl shadow-md border border-pink-200">
+            <h2 className="font-semibold text-pink-600 mb-2">④ Clothing Focus</h2>
             <div className="grid grid-cols-2 gap-2">
               {clothingFocuses.map((c) => (
                 <button
                   key={c}
                   onClick={() => setClothingFocus(c)}
-                  className={`p-2 text-sm rounded-md border ${
-                    clothingFocus === c ? "bg-pink-100 border-pink-400" : "hover:bg-pink-50"
+                  className={`p-2 text-sm rounded-md border transition-all ${
+                    clothingFocus === c
+                      ? "bg-pink-500 text-white border-pink-600"
+                      : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
                   }`}
                 >
                   {c}
                 </button>
               ))}
             </div>
-            {!showClothingInput ? (
-              <button
-                onClick={() => setShowClothingInput(true)}
-                className="mt-3 flex items-center gap-2 text-pink-600 text-sm"
-              >
-                <PlusCircle size={16} /> Create My Own
-              </button>
-            ) : (
-              <div className="mt-3 flex items-center gap-2">
-                <input
-                  type="text"
-                  value={customClothing}
-                  onChange={(e) => setCustomClothing(e.target.value)}
-                  placeholder="Enter custom clothing..."
-                  className="border rounded-md p-2 flex-1 text-sm"
-                />
-                <button
-                  onClick={() => {
-                    if (customClothing.trim()) {
-                      setClothingFocus(customClothing);
-                      setShowClothingInput(false);
-                      setCustomClothing("");
-                    }
-                  }}
-                  className="bg-pink-500 text-white px-3 py-2 rounded-md text-sm"
-                >
-                  Add
-                </button>
-              </div>
-            )}
           </div>
         </div>
 
-        {/* RIGHT COLUMN */}
+        {/* RIGHT SIDE */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white p-6 rounded-xl shadow-md border border-pink-200">
             <h2 className="font-semibold text-pink-600 mb-2">⑤ Describe the Scene</h2>
