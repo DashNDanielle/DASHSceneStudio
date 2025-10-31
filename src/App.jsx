@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Loader2, Upload, ImagePlus, PlusCircle } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -9,20 +9,16 @@ const firebaseConfig = {
   apiKey: "AIzaSyAiv_DQMuczXR3cFp3-4tu5qYzGCcga8kI",
   authDomain: "dash-scene-studio.firebaseapp.com",
   projectId: "dash-scene-studio",
-  storageBucket: "dash-scene-studio.firebasestorage.app",
+  storageBucket: "dash-scene-studio.appspot.com", // fixed CORS-safe
   messagingSenderId: "730304435",
   appId: "1:730304435:web:eb79b75293b8f12b8145c6",
   measurementId: "G-SS5X5RVQLJ",
 };
-
 const app = initializeApp(firebaseConfig);
 const storage = getStorage(app);
 
 // --- Gemini Setup ---
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({
-  model: "gemini-1.5-flash-latest",
-});
 
 export default function App() {
   const [avatar, setAvatar] = useState(null);
@@ -34,13 +30,16 @@ export default function App() {
   const [imageURL, setImageURL] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // custom “create my own” inputs
+  // Custom “create my own” inputs
   const [showStyleInput, setShowStyleInput] = useState(false);
   const [customStyle, setCustomStyle] = useState("");
   const [showPaletteInput, setShowPaletteInput] = useState(false);
   const [customPalette, setCustomPalette] = useState("");
   const [showClothingInput, setShowClothingInput] = useState(false);
   const [customClothing, setCustomClothing] = useState("");
+
+  // Debounce
+  const lastClickRef = useRef(0);
 
   // Upload Avatar
   const handleAvatarUpload = async (e) => {
@@ -60,13 +59,11 @@ export default function App() {
     }
   };
 
-  // Debounce setup
-  let lastClick = 0;
-
+  // Generate Scene (with full fix)
   const handleGenerateScene = async () => {
     const now = Date.now();
-    if (now - lastClick < 4000) return;
-    lastClick = now;
+    if (now - lastClickRef.current < 4000) return;
+    lastClickRef.current = now;
 
     if (!avatar || !style || !colorPalette || !clothingFocus) {
       alert("Please complete all selections before generating.");
@@ -77,32 +74,37 @@ export default function App() {
     setImageURL(null);
 
     try {
-      const response = await fetch(avatar);
+      const response = await fetch(avatar, { cache: "no-store" });
+      if (!response.ok) throw new Error("Failed to fetch avatar (CORS or missing).");
       const blob = await response.blob();
       const reader = new FileReader();
 
       reader.onloadend = async () => {
-        const base64 = reader.result.split(",")[1];
+        const base64 = reader.result.replace(/^data:.+;base64,/, ""); // clean prefix
+
         const userPrompt = `
 Use the uploaded avatar as the main subject.
 Preserve the avatar’s facial likeness and artistic style (realistic stays realistic, cartoon stays cartoon).
-Generate a full portrait 9:16 image, including a detailed environment and cinematic lighting.
-Incorporate these visual modifiers:
-- Style: ${style}
-- Color Palette: ${colorPalette}
-- Clothing Focus: ${clothingFocus}
-Scene Description: ${prompt || "Cohesive composition with depth and atmosphere."}
-Render a visually complete, high-quality scene that maintains the uploaded avatar’s look.
+Generate a full 9:16 portrait image with detailed environment and cinematic lighting.
+Style: ${style}
+Color Palette: ${colorPalette}
+Clothing Focus: ${clothingFocus}
+Scene: ${prompt || "Cohesive composition with depth and atmosphere."}
+Return one clear image only.
 `;
 
         const result = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${
             import.meta.env.VITE_GEMINI_API_KEY
           }`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              generationConfig: {
+                responseModalities: ["IMAGE"],
+                imageConfig: { aspectRatio: "9:16" },
+              },
               contents: [
                 {
                   parts: [
@@ -117,16 +119,19 @@ Render a visually complete, high-quality scene that maintains the uploaded avata
 
         const data = await result.json();
 
-        if (data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
-          const imageBase64 =
-            data.candidates[0].content.parts[0].inlineData.data;
-          setImageURL(`data:image/png;base64,${imageBase64}`);
+        const imageData =
+          data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+
+        if (imageData) {
+          setImageURL(`data:image/png;base64,${imageData}`);
         } else {
-          console.error("Gemini returned unexpected response:", data);
-          alert("Gemini did not return an image. Try adjusting your selections.");
+          console.error("Gemini response:", data);
+          alert("Gemini didn’t return an image. Try slightly adjusting selections or re-upload avatar.");
         }
+
         setLoading(false);
       };
+
       reader.readAsDataURL(blob);
     } catch (error) {
       console.error("Error generating scene:", error);
@@ -135,6 +140,7 @@ Render a visually complete, high-quality scene that maintains the uploaded avata
     }
   };
 
+  // Lists
   const styles = [
     "Dark Academia Aesthetic",
     "Kawaii",
@@ -154,9 +160,9 @@ Render a visually complete, high-quality scene that maintains the uploaded avata
   ];
 
   const colorPalettes = [
-    { name: "Ocean Mist", colors: ["#5F9EA0", "#B0C4DE", "#E6E6FA"], description: "Soft blues, seafoam green, and lavender." },
-    { name: "Desert Sunset", colors: ["#CD5C5C", "#F4A460", "#F0E68C"], description: "Deep reds, oranges, and sand tones." },
-    { name: "Vibrant Pop", colors: ["#FF69B4", "#00FFFF", "#FFD700"], description: "Hot pink, electric cyan, and gold." },
+    { name: "Ocean Mist", colors: ["#5F9EA0", "#B0C4DE", "#E6E6FA"], description: "Soft blues, seafoam green, lavender." },
+    { name: "Desert Sunset", colors: ["#CD5C5C", "#F4A460", "#F0E68C"], description: "Deep reds, oranges, sand tones." },
+    { name: "Vibrant Pop", colors: ["#FF69B4", "#00FFFF", "#FFD700"], description: "Hot pink, cyan, gold." },
     { name: "Monochrome Cool", colors: ["#2F4F4F", "#A9A9A9", "#DCDCDC"], description: "Slate gray and silver hues." },
     { name: "Earthy Jewel Tones", colors: ["#8B4513", "#228B22", "#800080"], description: "Brown, forest green, royal purple." },
     { name: "Pastel Dreams", colors: ["#FADADD", "#B0E0E6", "#FAFAD2"], description: "Rose, baby blue, pale yellow." },
@@ -210,7 +216,9 @@ Render a visually complete, high-quality scene that maintains the uploaded avata
                   key={s}
                   onClick={() => setStyle(s)}
                   className={`p-2 text-sm rounded-md border font-medium transition-all ${
-                    style === s ? "bg-pink-500 text-white border-pink-600 shadow-lg" : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
+                    style === s
+                      ? "bg-pink-500 text-white border-pink-600 shadow-lg"
+                      : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
                   }`}
                 >
                   {s}
@@ -256,7 +264,9 @@ Render a visually complete, high-quality scene that maintains the uploaded avata
                 key={p.name}
                 onClick={() => setColorPalette(p.name)}
                 className={`w-full flex items-center justify-between rounded-md border p-2 text-sm font-medium transition-all ${
-                  colorPalette === p.name ? "bg-pink-500 text-white border-pink-600 shadow-lg" : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
+                  colorPalette === p.name
+                    ? "bg-pink-500 text-white border-pink-600 shadow-lg"
+                    : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
                 }`}
               >
                 <span>
@@ -310,7 +320,9 @@ Render a visually complete, high-quality scene that maintains the uploaded avata
                   key={c}
                   onClick={() => setClothingFocus(c)}
                   className={`p-2 text-sm rounded-md border font-medium transition-all ${
-                    clothingFocus === c ? "bg-pink-500 text-white border-pink-600 shadow-lg" : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
+                    clothingFocus === c
+                      ? "bg-pink-500 text-white border-pink-600 shadow-lg"
+                      : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
                   }`}
                 >
                   {c}
