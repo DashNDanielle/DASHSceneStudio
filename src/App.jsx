@@ -76,16 +76,15 @@ export default function App() {
         const chosenPalette = customPalette || colorPalette || "soft pastel tones";
         const chosenClothing = customClothing || clothingFocus || "modern outfit";
 
-        const scenePrompt = `
-          Use the uploaded image as the character reference.
-          Maintain the same face and artistic tone.
-          Style: ${chosenStyle}.
-          Color palette: ${chosenPalette}.
-          Outfit focus: ${chosenClothing}.
-          Scene: ${prompt || "visually appealing portrait in 9:16 ratio"}.
-          Lighting: soft, cinematic, detailed textures.
-          Final output should look cohesive, polished, and expressive.
-        `;
+        const userPrompt = `
+Create a new 9:16 image using the uploaded avatar as a visual reference.
+Maintain the avatar’s face and likeness.
+Style theme: ${style || "Default"}.
+Color palette: ${colorPalette || "Default"}.
+Clothing focus: ${clothingFocus || "Default"}.
+Scene description: ${prompt || "Cinematic background, soft lighting."}
+Return a clear portrait composition.
+`;
 
         const result = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${
@@ -99,7 +98,7 @@ export default function App() {
                 {
                   role: "user",
                   parts: [
-                    { text: scenePrompt },
+                    { text: userPrompt },
                     {
                       inline_data: {
                         mime_type: blob.type,
@@ -170,7 +169,7 @@ export default function App() {
 
   // ---- UI ----
   return (
-    <div className="min-h-screen flex flex-col items-center py-10 px-4 bg-gradient-to-br from-[#ffe6f2] via-[#fff0f5] to-[#ffe4ec]">
+    <div className="min-h-screen flex flex-col items-center justify-center py-10 px-4 bg-gradient-to-br from-white via-[#ffe4ec] to-[#f8d1e5]">
       <div className="w-full max-w-6xl bg-white/80 rounded-3xl shadow-lg p-8 border border-pink-200">
         <h1 className="text-3xl font-bold text-center text-pink-600 mb-3">💗 DASH Scene Studio</h1>
         <p className="text-center text-gray-500 mb-8">
@@ -203,18 +202,21 @@ export default function App() {
               <h2 className="font-semibold text-pink-600 mb-2">② Choose Your Style</h2>
               <div className="grid grid-cols-2 gap-2">
                 {styles.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setStyle(s)}
-                    className={`p-2 text-sm rounded-md border transition ${
-                      style === s ? "bg-pink-200 border-pink-400" : "hover:bg-pink-100"
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-
+                  <div className="grid grid-cols-2 gap-2">
+  {styles.map((s) => (
+    <button
+      key={s}
+      onClick={() => setStyle(s)}
+      className={`p-2 text-sm rounded-md border transition ${
+        style === s
+          ? "bg-pink-200 border-pink-500 text-pink-800"
+          : "hover:bg-pink-100 border-gray-300 text-gray-700"
+      }`}
+    >
+      {s}
+    </button>
+  ))}
+</div>
               {!showStyleInput ? (
                 <button
                   onClick={() => setShowStyleInput(true)}
@@ -251,24 +253,34 @@ export default function App() {
             <div className="p-6 bg-pink-50 rounded-2xl border border-pink-200">
               <h2 className="font-semibold text-pink-600 mb-2">③ Choose Color Palette</h2>
               {colorPalettes.map((p) => (
-                <button
-                  key={p.name}
-                  onClick={() => setColorPalette(p.name)}
-                  className={`w-full flex items-center justify-between rounded-md border p-2 text-sm transition ${
-                    colorPalette === p.name ? "bg-pink-200 border-pink-400" : "hover:bg-pink-100"
-                  }`}
-                >
-                  <span className="text-left">
-                    <strong>{p.name}</strong>
-                    <div className="text-xs text-gray-500">{p.description}</div>
-                  </span>
-                  <div className="flex gap-1">
-                    {p.colors.map((c, i) => (
-                      <span key={i} className="w-4 h-4 rounded-full border" style={{ backgroundColor: c }}></span>
-                    ))}
-                  </div>
-                </button>
-              ))}
+               <div className="space-y-3">
+  {colorPalettes.map((p) => (
+    <button
+      key={p.name}
+      onClick={() => setColorPalette(p.name)}
+      className={`w-full flex items-center justify-between rounded-md border p-2 text-sm transition ${
+        colorPalette === p.name
+          ? "bg-pink-200 border-pink-500 text-pink-800"
+          : "hover:bg-pink-100 border-gray-300 text-gray-700"
+      }`}
+    >
+      <span className="text-left">
+        <strong>{p.name}</strong>
+        <div className="text-xs text-gray-500">{p.description}</div>
+      </span>
+      <div className="flex gap-1">
+        {p.colors.map((c, i) => (
+          <span
+            key={i}
+            className="w-4 h-4 rounded-full border"
+            style={{ backgroundColor: c }}
+          ></span>
+        ))}
+      </div>
+    </button>
+  ))}
+</div>
+
 
               {!showPaletteInput ? (
                 <button
@@ -307,17 +319,22 @@ export default function App() {
               <h2 className="font-semibold text-pink-600 mb-2">④ Choose Clothing Focus</h2>
               <div className="grid grid-cols-2 gap-2">
                 {clothingFocuses.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setClothingFocus(c)}
-                    className={`p-2 text-sm rounded-md border transition ${
-                      clothingFocus === c ? "bg-pink-200 border-pink-400" : "hover:bg-pink-100"
-                    }`}
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
+                  <div className="grid grid-cols-2 gap-2">
+  {clothingFocuses.map((c) => (
+    <button
+      key={c}
+      onClick={() => setClothingFocus(c)}
+      className={`p-2 text-sm rounded-md border transition ${
+        clothingFocus === c
+          ? "bg-pink-200 border-pink-500 text-pink-800"
+          : "hover:bg-pink-100 border-gray-300 text-gray-700"
+      }`}
+    >
+      {c}
+    </button>
+  ))}
+</div>
+
 
               {!showClothingInput ? (
                 <button
