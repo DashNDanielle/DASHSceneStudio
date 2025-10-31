@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Loader2, Upload, ImagePlus } from "lucide-react";
+import { Loader2, Upload, ImagePlus, PlusCircle } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -21,7 +21,7 @@ const storage = getStorage(app);
 // --- Gemini Setup ---
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash-image-preview",
+  model: "gemini-1.5-flash-latest",
 });
 
 export default function App() {
@@ -34,7 +34,15 @@ export default function App() {
   const [imageURL, setImageURL] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // ---- Upload Avatar ----
+  // custom “create my own” inputs
+  const [showStyleInput, setShowStyleInput] = useState(false);
+  const [customStyle, setCustomStyle] = useState("");
+  const [showPaletteInput, setShowPaletteInput] = useState(false);
+  const [customPalette, setCustomPalette] = useState("");
+  const [showClothingInput, setShowClothingInput] = useState(false);
+  const [customClothing, setCustomClothing] = useState("");
+
+  // Upload Avatar
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -52,15 +60,16 @@ export default function App() {
     }
   };
 
-  // ---- Generate Scene (Debounced) ----
+  // Debounce setup
   let lastClick = 0;
+
   const handleGenerateScene = async () => {
     const now = Date.now();
-    if (now - lastClick < 3000) return;
+    if (now - lastClick < 4000) return;
     lastClick = now;
 
-    if (!avatar) {
-      alert("Please upload your avatar first.");
+    if (!avatar || !style || !colorPalette || !clothingFocus) {
+      alert("Please complete all selections before generating.");
       return;
     }
 
@@ -75,18 +84,19 @@ export default function App() {
       reader.onloadend = async () => {
         const base64 = reader.result.split(",")[1];
         const userPrompt = `
-        Create a new image using the uploaded avatar as a visual reference.
-        Maintain the avatar’s facial likeness and proportions.
-        Style theme: ${style || "Default"}.
-        Color palette: ${colorPalette || "Default"}.
-        Clothing focus: ${clothingFocus || "Default"}.
-        Scene description: ${prompt || "Cinematic background, soft lighting."}
-        Output format: portrait 9:16 aspect ratio.
-        Timestamp: ${Date.now()}
-        `;
+Use the uploaded avatar as the main subject.
+Preserve the avatar’s facial likeness and artistic style (realistic stays realistic, cartoon stays cartoon).
+Generate a full portrait 9:16 image, including a detailed environment and cinematic lighting.
+Incorporate these visual modifiers:
+- Style: ${style}
+- Color Palette: ${colorPalette}
+- Clothing Focus: ${clothingFocus}
+Scene Description: ${prompt || "Cohesive composition with depth and atmosphere."}
+Render a visually complete, high-quality scene that maintains the uploaded avatar’s look.
+`;
 
         const result = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${
             import.meta.env.VITE_GEMINI_API_KEY
           }`,
           {
@@ -106,17 +116,17 @@ export default function App() {
         );
 
         const data = await result.json();
+
         if (data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
           const imageBase64 =
             data.candidates[0].content.parts[0].inlineData.data;
           setImageURL(`data:image/png;base64,${imageBase64}`);
         } else {
           console.error("Gemini returned unexpected response:", data);
-          alert("Gemini did not return an image. Try changing your scene description.");
+          alert("Gemini did not return an image. Try adjusting your selections.");
         }
         setLoading(false);
       };
-
       reader.readAsDataURL(blob);
     } catch (error) {
       console.error("Error generating scene:", error);
@@ -125,7 +135,6 @@ export default function App() {
     }
   };
 
-  // ---- Options Lists ----
   const styles = [
     "Dark Academia Aesthetic",
     "Kawaii",
@@ -146,11 +155,11 @@ export default function App() {
 
   const colorPalettes = [
     { name: "Ocean Mist", colors: ["#5F9EA0", "#B0C4DE", "#E6E6FA"], description: "Soft blues, seafoam green, and lavender." },
-    { name: "Desert Sunset", colors: ["#CD5C5C", "#F4A460", "#F0E68C"], description: "Deep reds, vibrant oranges, and warm sand tones." },
-    { name: "Vibrant Pop", colors: ["#FF69B4", "#00FFFF", "#FFD700"], description: "Hot pink, electric cyan, and bright gold accents." },
-    { name: "Monochrome Cool", colors: ["#2F4F4F", "#A9A9A9", "#DCDCDC"], description: "Dark slate gray, neutral gray, and silvery white." },
-    { name: "Earthy Jewel Tones", colors: ["#8B4513", "#228B22", "#800080"], description: "Rich brown, deep forest green, and royal purple." },
-    { name: "Pastel Dreams", colors: ["#FADADD", "#B0E0E6", "#FAFAD2"], description: "Soft rose, baby blue, and pale yellow." },
+    { name: "Desert Sunset", colors: ["#CD5C5C", "#F4A460", "#F0E68C"], description: "Deep reds, oranges, and sand tones." },
+    { name: "Vibrant Pop", colors: ["#FF69B4", "#00FFFF", "#FFD700"], description: "Hot pink, electric cyan, and gold." },
+    { name: "Monochrome Cool", colors: ["#2F4F4F", "#A9A9A9", "#DCDCDC"], description: "Slate gray and silver hues." },
+    { name: "Earthy Jewel Tones", colors: ["#8B4513", "#228B22", "#800080"], description: "Brown, forest green, royal purple." },
+    { name: "Pastel Dreams", colors: ["#FADADD", "#B0E0E6", "#FAFAD2"], description: "Rose, baby blue, pale yellow." },
   ];
 
   const clothingFocuses = [
@@ -163,9 +172,8 @@ export default function App() {
     "Swimwear or Beach Attire",
   ];
 
-  // ---- UI ----
   return (
-    <div className="min-h-screen flex flex-col items-center py-10 px-4 bg-gradient-to-br from-white via-pink-50 to-pink-100">
+    <div className="min-h-screen flex flex-col items-center py-10 px-4 bg-gradient-to-br from-pink-50 via-pink-100 to-pink-200">
       <h1 className="text-3xl font-bold text-center text-pink-600 mb-6">
         ✿ DASH Scene Studio
       </h1>
@@ -174,7 +182,6 @@ export default function App() {
       </p>
 
       <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* LEFT SIDE */}
         <div className="space-y-6">
           {/* Upload Avatar */}
           <div className="bg-white p-6 rounded-xl shadow-md border border-pink-200">
@@ -203,15 +210,42 @@ export default function App() {
                   key={s}
                   onClick={() => setStyle(s)}
                   className={`p-2 text-sm rounded-md border font-medium transition-all ${
-                    style === s
-                      ? "bg-pink-500 text-white border-pink-600 shadow-lg"
-                      : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
+                    style === s ? "bg-pink-500 text-white border-pink-600 shadow-lg" : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
                   }`}
                 >
                   {s}
                 </button>
               ))}
             </div>
+            {!showStyleInput ? (
+              <button
+                onClick={() => setShowStyleInput(true)}
+                className="mt-3 flex items-center gap-2 text-pink-600 text-sm font-medium"
+              >
+                <PlusCircle size={16} /> Create My Own
+              </button>
+            ) : (
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  type="text"
+                  value={customStyle}
+                  onChange={(e) => setCustomStyle(e.target.value)}
+                  placeholder="Enter custom style..."
+                  className="border rounded-md p-2 flex-1 text-sm"
+                />
+                <button
+                  onClick={() => {
+                    if (customStyle.trim()) {
+                      setStyle(customStyle);
+                      setShowStyleInput(false);
+                    }
+                  }}
+                  className="bg-pink-500 text-white px-3 py-2 rounded-md text-sm"
+                >
+                  Add
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Color Picker */}
@@ -222,9 +256,7 @@ export default function App() {
                 key={p.name}
                 onClick={() => setColorPalette(p.name)}
                 className={`w-full flex items-center justify-between rounded-md border p-2 text-sm font-medium transition-all ${
-                  colorPalette === p.name
-                    ? "bg-pink-500 text-white border-pink-600 shadow-lg"
-                    : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
+                  colorPalette === p.name ? "bg-pink-500 text-white border-pink-600 shadow-lg" : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
                 }`}
               >
                 <span>
@@ -238,6 +270,35 @@ export default function App() {
                 </div>
               </button>
             ))}
+            {!showPaletteInput ? (
+              <button
+                onClick={() => setShowPaletteInput(true)}
+                className="mt-3 flex items-center gap-2 text-pink-600 text-sm font-medium"
+              >
+                <PlusCircle size={16} /> Create My Own
+              </button>
+            ) : (
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  type="text"
+                  value={customPalette}
+                  onChange={(e) => setCustomPalette(e.target.value)}
+                  placeholder="Enter custom palette..."
+                  className="border rounded-md p-2 flex-1 text-sm"
+                />
+                <button
+                  onClick={() => {
+                    if (customPalette.trim()) {
+                      setColorPalette(customPalette);
+                      setShowPaletteInput(false);
+                    }
+                  }}
+                  className="bg-pink-500 text-white px-3 py-2 rounded-md text-sm"
+                >
+                  Add
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Clothing */}
@@ -249,15 +310,42 @@ export default function App() {
                   key={c}
                   onClick={() => setClothingFocus(c)}
                   className={`p-2 text-sm rounded-md border font-medium transition-all ${
-                    clothingFocus === c
-                      ? "bg-pink-500 text-white border-pink-600 shadow-lg"
-                      : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
+                    clothingFocus === c ? "bg-pink-500 text-white border-pink-600 shadow-lg" : "hover:bg-pink-100 hover:text-pink-600 border-pink-200"
                   }`}
                 >
                   {c}
                 </button>
               ))}
             </div>
+            {!showClothingInput ? (
+              <button
+                onClick={() => setShowClothingInput(true)}
+                className="mt-3 flex items-center gap-2 text-pink-600 text-sm font-medium"
+              >
+                <PlusCircle size={16} /> Create My Own
+              </button>
+            ) : (
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  type="text"
+                  value={customClothing}
+                  onChange={(e) => setCustomClothing(e.target.value)}
+                  placeholder="Enter custom clothing..."
+                  className="border rounded-md p-2 flex-1 text-sm"
+                />
+                <button
+                  onClick={() => {
+                    if (customClothing.trim()) {
+                      setClothingFocus(customClothing);
+                      setShowClothingInput(false);
+                    }
+                  }}
+                  className="bg-pink-500 text-white px-3 py-2 rounded-md text-sm"
+                >
+                  Add
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -274,8 +362,12 @@ export default function App() {
             />
             <button
               onClick={handleGenerateScene}
-              disabled={loading}
-              className="w-full bg-pink-500 text-white font-medium py-2 rounded-lg hover:bg-pink-600 transition flex items-center justify-center gap-2 disabled:opacity-60"
+              disabled={!style || !colorPalette || !clothingFocus || loading}
+              className={`w-full font-medium py-2 rounded-lg transition flex items-center justify-center gap-2 ${
+                !style || !colorPalette || !clothingFocus || loading
+                  ? "bg-pink-300 text-white opacity-70 cursor-not-allowed"
+                  : "bg-pink-500 text-white hover:bg-pink-600"
+              }`}
             >
               {loading ? <Loader2 className="animate-spin" size={18} /> : <ImagePlus size={18} />}
               {loading ? "Generating..." : "Generate Scene (9:16)"}
